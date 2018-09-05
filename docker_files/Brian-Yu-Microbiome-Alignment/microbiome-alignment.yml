@@ -1,0 +1,21 @@
+build_docker_image:
+  base_image: ubuntu:16.04
+
+build_image:
+  commands:
+    $extend:
+      - "yes | apt-get update"
+      - "apt-get install -y apt-utils build-essential wget zip unzip bzip2 git zlib1g-dev pkg-config make libbz2-dev python-pip"
+      - "wget --quiet https://repo.anaconda.com/archive/Anaconda3-5.2.0-Linux-x86_64.sh -O /tmp/anaconda.sh"
+      - "bash /tmp/anaconda.sh -b -p $HOME/anaconda"
+      - "PATH=$HOME/anaconda/bin:$PATH"
+      - "conda config --set always_yes yes --set changeps1 no"
+      - "conda update -q conda"
+      - "conda update --add channels biobuilds"
+      - "conda config --add channels etetoolkit"
+      - "conda config --add channels defaults"
+      - "conda config --add channels conda-forge"
+      - "conda config --add channels bioconda"
+      - "git clone https://github.com/czbiohub/utilities.git"
+      - "cd utilities"
+      - "pip install --upgrade -e ."
