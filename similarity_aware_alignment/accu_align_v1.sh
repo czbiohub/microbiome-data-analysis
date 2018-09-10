@@ -27,7 +27,7 @@
 LOCAL=/mnt
 
 # Update utilities repository
-cd ~/utilities
+cd /utilities
 git pull
 
 # Clone microbiome analysis repository
