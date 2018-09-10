@@ -1,4 +1,4 @@
-aegea batch submit --ecr-image aligner --storage /mnt=500 --memory 2000 --vcpus 8 --dry-run \
+aegea batch submit --ecr-image aligner --storage /mnt=500 --memory 16000 --vcpus 8 --dry-run \
 --command="cd /mnt; \
 git clone https://github.com/czbiohub/microbiome-data-analysis.git; \
 coreNum=4; \

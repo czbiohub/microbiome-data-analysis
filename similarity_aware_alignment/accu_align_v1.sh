@@ -15,7 +15,7 @@
 # sampleName; fastq1=/czbiohub-brianyu/...; fastq2;
 # bamOutput; relativeAbundanceOutput; readAccountingOutput
 #
-# bbtools assumes 30G of memory -Xmx30g; needs sambamba in conda env
+# bbtools assumes 16G of memory -Xmx16g; needs sambamba in conda env
 #
 # Revision History:
 # 2018.09.08 Brian Yu Created
@@ -71,11 +71,11 @@ aws s3 cp --quiet s3:/$fastq1 $tempFolder/read1.fastq.gz
 aws s3 cp --quiet s3:/$fastq2 $tempFolder/read2.fastq.gz
 
 # Use bbduk to trim reads, -eoom exits when out of memory
-bbduk.sh -Xmx30g -eoom in1=$tempFolder/read1.fastq.gz in2=$tempFolder/read2.fastq.gz out1=$tempFolder/read1_trimmed.fastq.gz out2=$tempFolder/read2_trimmed.fastq.gz ref=$adapterFile ktrim=r k=$kmer_value mink=$min_kmer_value hdist=1 tbo qtrim=rl trimq=$trimQuality minlen=$minLength
+bbduk.sh -Xmx16g -eoom in1=$tempFolder/read1.fastq.gz in2=$tempFolder/read2.fastq.gz out1=$tempFolder/read1_trimmed.fastq.gz out2=$tempFolder/read2_trimmed.fastq.gz ref=$adapterFile ktrim=r k=$kmer_value mink=$min_kmer_value hdist=1 tbo qtrim=rl trimq=$trimQuality minlen=$minLength
 	
 # bowtie2 alignment returning multiple alignments and using longer max insert size limites
 # output samtools bam file with only properly aligned paired reads.
-bowtie2 -X $maxInsert -k $maxAlignments --threads $coreNum -t -x $bowtie2GenomeBase -1 $resultFolder/read1_trimmed.fastq.gz -2 $resultFolder/read2_trimmed.fastq.gz | samtools view -bh -f 0x003 -o $tempFolder/proper_alignment.bam -
+bowtie2 -X $maxInsert -k $maxAlignments --threads $coreNum -t -x $bowtie2GenomeBase -1 $tempFolder/read1_trimmed.fastq.gz -2 $tempFolder/read2_trimmed.fastq.gz | samtools view -bh -f 0x003 -o $tempFolder/proper_alignment.bam -
 
 # Sort the bam file by name
 samtools sort -@ $coreNum -m $memPerCore -n -o $tempFolder/proper_alignment_sortedByName.bam $tempFolder/proper_alignment.bam
@@ -83,11 +83,11 @@ samtools sort -@ $coreNum -m $memPerCore -n -o $tempFolder/proper_alignment_sort
 # Pull out the uniquely mapped alignments sorted by index and tabulate those
 samtools view $tempFolder/proper_alignment_sortedByName.bam | cut -f 1 | uniq -c | awk '{$1=$1;print}' | tr ' ' '\t' > $tempFolder/proper_alignment.count
 awk -F '\t' '$1==2 {print $2}' $tempFolder/proper_alignment.count > $tempFolder/unique_alignment_names.txt
-filterbyname.sh -Xmx30g -eoom in=$tempFolder/proper_alignment_sortedByName.bam out=$tempFolder/unique_alignment_sortedByName.bam names=$tempFolder/unique_alignment_names.txt include=t ow=t
+filterbyname.sh -Xmx16g -eoom in=$tempFolder/proper_alignment_sortedByName.bam out=$tempFolder/unique_alignment_sortedByName.bam names=$tempFolder/unique_alignment_names.txt include=t ow=t
 
 # Pull out the multi-mapped reads and save for later
 awk -F '\t' '$1>2 {print $2}' $tempFolder/proper_alignment.count > $tempFolder/multiple_alignment_names.txt
-filterbyname.sh -Xmx30g -eoom in=$tempFolder/proper_alignment_sortedByName.bam out=$tempFolder/multiple_alignment_sortedByName.bam names=$tempFolder/multiple_alignment_names.txt include=t ow=t
+filterbyname.sh -Xmx16g -eoom in=$tempFolder/proper_alignment_sortedByName.bam out=$tempFolder/multiple_alignment_sortedByName.bam names=$tempFolder/multiple_alignment_names.txt include=t ow=t
 
 # Tabulate read count
 totalReads=$(( $( zcat $tempFolder/read1.fastq.gz | wc -l ) / 4 ))
