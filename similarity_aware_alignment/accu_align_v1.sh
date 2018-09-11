@@ -98,7 +98,9 @@ echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned_Uniquel
 echo $sampleName','$totalReads','$readsAfterTrim','$uniqueReads','$multipleReads >> $tempFolder/read_accounting.csv
 
 # Go through the multimapped reads to assign them using a python script.
-python $scriptFolder/tabulate_alignment_fragment_v1.py $referenceNameFile $tempFolder/unique_alignment_sortedByName.bam $tempFolder/multiple_alignment_sortedByName.bam $tempFolder/tabulated_alignment_fragment.csv $sampleName
+date
+python $scriptFolder/tabulate_alignment_fragment_v2.py $referenceNameFile $tempFolder/unique_alignment_sortedByName.bam $tempFolder/multiple_alignment_sortedByName.bam $tempFolder/tabulated_alignment_fragment.csv $sampleName
+date
 
 # Copy all the output files back to S3
 aws s3 cp --quiet $tempFolder/proper_alignment_sortedByName.bam s3:/$bamOutput
