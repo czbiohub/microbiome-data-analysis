@@ -34,5 +34,5 @@ with open(arguments.output_command, 'w') as command_file:
         sample_specific_file_names = 'fastq1='+run_samples.loc[sample,'fastq1']+'; fastq2='+run_samples.loc[sample,'fastq2']+'; bamOutput='+run_samples.loc[sample,'bamOutput']+'; relativeAbundanceOutput='+run_samples.loc[sample,'relativeAbundanceOutput']+'; readAccountingOutput='+run_samples.loc[sample,'readAccountingOutput']+'; '
         t = command_file.write('echo "Submitting Sample '+sample+'"\n')
         t = command_file.write(base_string+command_string1+'sampleName='+sample+'; '+sample_specific_file_names+command_string2)
-        t = command_file.write('\n\nsleep 60\n\n')
+        t = command_file.write('\n\nsleep 15\n\n')
 
