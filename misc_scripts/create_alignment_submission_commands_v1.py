@@ -29,7 +29,8 @@ arguments = p.parse_args()
 # Create base command string
 base_string = 'aegea batch submit --ecr-image aligner --storage /mnt=500 --memory 32000 --vcpus 8 --command='
 command_string1 = '"cd /mnt; git clone https://github.com/czbiohub/microbiome-data-analysis.git; coreNum=8; memPerCore=2G; maxInsert=3000; maxAlignments=200; genomeReferenceDir=/czbiohub-brianyu/Synthetic_Community/Genome_References/Bowtie2Index_090718; '
-command_string2 = 'source /mnt/microbiome-data-analysis/similarity_aware_alignment/accu_align_v1.sh"'
+# command_string2 = 'source /mnt/microbiome-data-analysis/similarity_aware_alignment/accu_align_v1.sh"'
+command_string2 = 'source /mnt/microbiome-data-analysis/similarity_aware_alignment/accu_align_test.sh"'
 
 # Read in seedfile, column 1 (ie 2) needs to be sampleName
 run_samples = pd.read_csv(arguments.seedfile, sep=',', header=0, index_col='sampleName') 

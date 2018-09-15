@@ -18,6 +18,8 @@ Revision History:
 2018.09.14 This is the test version to try alignment methods and parameters. 
            This python script is used with the test verion of shell script, where bowtie2 returns
            a single best alignment. This script tabulates the bp fragment size from unique alignments only.
+2018.09.15 The next test was to count only reads instead of total fragment lengths. 
+           Updated this function to count only reads.
 """
 
 import argparse, pysam
@@ -49,7 +51,8 @@ counter = 0
 for alignment in bamfile.fetch(until_eof=True):
     if alignment.is_paired and alignment.is_read1 and alignment.is_proper_pair:
         ref = bamfile.get_reference_name(alignment.reference_id)
-        coverage.ix[ref.split('_')[0],arguments.sample_name] += float(abs(alignment.template_length))
+        # coverage.ix[ref.split('_')[0],arguments.sample_name] += float(abs(alignment.template_length))
+        coverage.ix[ref.split('_')[0],arguments.sample_name] += 1
         counter += 1
         if counter % 100000 == 0:
             print('.', end='')
