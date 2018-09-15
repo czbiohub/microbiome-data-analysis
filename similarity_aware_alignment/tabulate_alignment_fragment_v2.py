@@ -8,7 +8,7 @@ multiple_alignment_file: bam file with all reads that mapped multiple times
 tabulated_alignment_file: output file including all the genomes and one column with fragments
 sample_name: a string that represents the name of the sample
 
-Description: This function is used in accu_align.sh. Only the first read alignments are used.
+Description: This function is used in accu_align_v1.sh. Only the first read alignments are used.
              For unique alignments, the number of bps in inferred fragment length is used.
              For multiple alignments, the number of bps are proportionally assigned.
 
@@ -95,8 +95,8 @@ for alignment in bamfile.fetch(until_eof=True):
 bamfile.close()
 
 # For debugging
-print(coverage)
-print(tempCov)
+# print(coverage)
+# print(tempCov)
 
 coverage.loc[coverage.index, arguments.sample_name] += tempCov.loc[tempCov.index, arguments.sample_name]
 print('.')

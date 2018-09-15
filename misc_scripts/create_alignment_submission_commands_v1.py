@@ -11,6 +11,7 @@ Author: Brian Yu
 Revision History:
 2018.09.10 Created
 2018.09.12 Added functionality to check for jobs already done.
+2018.09.13 Decrease the number of jobs submitted concurrently and increased wait times.
 """
 
 import argparse, subprocess, os
@@ -26,7 +27,7 @@ p.add_argument(dest='output_command', action='store', type=str)
 arguments = p.parse_args()
 
 # Create base command string
-base_string = 'aegea batch submit --ecr-image aligner --storage /mnt=500 --memory 16000 --vcpus 8 --command='
+base_string = 'aegea batch submit --ecr-image aligner --storage /mnt=500 --memory 32000 --vcpus 8 --command='
 command_string1 = '"cd /mnt; git clone https://github.com/czbiohub/microbiome-data-analysis.git; coreNum=8; memPerCore=2G; maxInsert=3000; maxAlignments=200; genomeReferenceDir=/czbiohub-brianyu/Synthetic_Community/Genome_References/Bowtie2Index_090718; '
 command_string2 = 'source /mnt/microbiome-data-analysis/similarity_aware_alignment/accu_align_v1.sh"'
 
@@ -63,10 +64,10 @@ with open(arguments.output_command, 'w') as command_file:
             sample_specific_file_names = 'fastq1='+run_samples.loc[sample,'fastq1']+'; fastq2='+run_samples.loc[sample,'fastq2']+'; bamOutput='+run_samples.loc[sample,'bamOutput']+'; relativeAbundanceOutput='+run_samples.loc[sample,'relativeAbundanceOutput']+'; readAccountingOutput='+run_samples.loc[sample,'readAccountingOutput']+'; '
             t = command_file.write('echo "Submitting Sample '+sample+'"\n')
             t = command_file.write(base_string+command_string1+'sampleName='+sample+'; '+sample_specific_file_names+command_string2)
-            if counter % 20 == 19:
-                t = command_file.write('\n\nsleep 300\n\n')
+            if counter % 8 == 7:
+                t = command_file.write('\n\nsleep 600\n\n')
             else:
-                t = command_file.write('\n\nsleep 10\n\n')
+                t = command_file.write('\n\nsleep 150\n\n')
             counter += 1
 
 # Remove temp file

@@ -1,28 +1,36 @@
 """
-tabulate_alignment_fragment_v1.py
+tabulate_alignment_fragment_test.py
 
 reference_list_file: File with two columns used to generate bowtie2 index.
                      Stored with the bowtie2 references and called genome_name_list.csv
 unique_alignment_file: bam file with all unique alignments
-multiple_alignment_file: bam file with all reads that mapped multiple times
 tabulated_alignment_file: output file including all the genomes and one column with fragments
 sample_name: a string that represents the name of the sample
 
-Description: This function is used in accu_align_v1.sh. Only the first read alignments are used.
+Description: This function is used in accu_align_test.sh. Only the first read alignments are used.
              For unique alignments, the number of bps in inferred fragment length is used.
-             For multiple alignments, the number of bps are proportionally assigned.
+             This script does not handle multiple alignments anymore.
+
+Author: Brian Yu
+
+Revision History:
+2018.09.10 Version 1 had the wrong algorithm. This version uses the unique reads.
+2018.09.14 This is the test version to try alignment methods and parameters. 
+           This python script is used with the test verion of shell script, where bowtie2 returns
+           a single best alignment. This script tabulates the bp fragment size from unique alignments only.
 """
 
 import argparse, pysam
+import numpy as np
 import pandas as pd
 
-usage = "USAGE: python generate_combined_reference_v1.py reference_list_file unique_alignment_file multiple_alignment_file tabulated_alignment_file sample_name"
+usage = "USAGE: python generate_combined_reference_test.py reference_list_file unique_alignment_file tabulated_alignment_file sample_name"
 
 # Making default argument list structures
 p = argparse.ArgumentParser(usage=usage)
 p.add_argument(dest='reference_list_file', action='store', type=str)
 p.add_argument(dest='unique_alignment_file', action='store', type=str)
-p.add_argument(dest='multiple_alignment_file', action='store', type=str)
+# p.add_argument(dest='multiple_alignment_file', action='store', type=str)
 p.add_argument(dest='tabulated_alignment_file', action='store', type=str)
 p.add_argument(dest='sample_name', action='store', type=str)
 
@@ -49,34 +57,10 @@ for alignment in bamfile.fetch(until_eof=True):
 bamfile.close()
 print('.')
 
-# For debugging purposes
-# coverage.to_csv(arguments.tabulated_alignment_file, index=True, header=True)
+# For debugging purposes and testing algorithms
+coverage.to_csv(arguments.tabulated_alignment_file, index=True, header=True)
 
-# Process multiple alignments
-print("Processing Reads With Multiple Alignments")
-# Create another df with same index
-tempCov = pd.DataFrame(index=coverage.index)
-tempCov[arguments.sample_name] = 0
-current_read_name = ''
-bamfile = pysam.AlignmentFile(arguments.multiple_alignment_file, mode='rb')
-for alignment in bamfile.fetch(until_eof=True):
-    if alignment.is_paired and alignment.is_read1 and alignment.is_proper_pair:
-        # If it's a new read
-        if alignment.query_name != current_read_name:
-            # Split the read and add to the original coverage df
-            if tempCov[arguments.sample_name].sum() > 0:
-                coverage[arguments.sample_name] = coverage[arguments.sample_name] + tempCov[arguments.sample_name] / tempCov[arguments.sample_name].sum()
-            # Update the variables to handle the next read
-            tempCov[arguments.sample_name] = 0
-            current_read_name = alignment.query_name
-        ref = bamfile.get_reference_name(alignment.reference_id)
-        tempCov.ix[ref.split('_')[0],arguments.sample_name] += float(abs(alignment.template_length))
-        counter += 1
-        if counter % 100000 == 0:
-            print('.', end='')
-            counter = 0
-bamfile.close()
-print('.')
+# removed the part that handles multiple aligned reads
 
 # Output final tabulated file
 coverage.to_csv(arguments.tabulated_alignment_file, index=True, header=True)
