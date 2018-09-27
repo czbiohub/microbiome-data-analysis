@@ -103,7 +103,7 @@ python $scriptFolder/tabulate_alignment_fragment_v2.py $referenceNameFile $tempF
 date
 
 # Copy all the output files back to S3
-# aws s3 cp --quiet $tempFolder/proper_alignment_sortedByName.bam s3:/$bamOutput
+aws s3 cp --quiet $tempFolder/proper_alignment_sortedByName.bam s3:/$bamOutput
 aws s3 cp --quiet $tempFolder/tabulated_alignment_fragment.csv s3:/$relativeAbundanceOutput
 aws s3 cp --quiet $tempFolder/read_accounting.csv s3:/$readAccountingOutput
 
