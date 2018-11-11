@@ -2,6 +2,8 @@ import argparse, os, pysam
 import numpy as np
 import pandas as pd
 from subprocess import call
+from multiprocessing import Process
+from time import sleep
 
 
 class Tabulate_BasePair_Coverage:
@@ -10,6 +12,7 @@ class Tabulate_BasePair_Coverage:
     Revision History:   2018.10.11 Brian Yu Created. Need to think about how to use multiprocessing
                         2018.10.13 Use df.groupby in compute coverage
                         2018.10.14 Completed first path and completed debugging
+                        2018.11.10 Resolved all bugs. First working version of tabulation pipeline
     """
 
     def __init__(self, reference_fasta, reference_names):
@@ -141,7 +144,7 @@ class Tabulate_BasePair_Coverage:
         else:
             core_num = int(core_num)
         sorted_bamfile = bamfile_name.split('.bam')[0] + '.sortedByCoord.bam';
-        pysam.sort("--threads",str(core_num),"-o",sorted_bamfile,bamfile_name)
+        pysam.sort("--threads",str(core_num),"-m","2G","-o",sorted_bamfile,bamfile_name)
         # The depth file is returned as one single string
         return pysam.depth(sorted_bamfile)
 
@@ -231,17 +234,34 @@ class Tabulate_BasePair_Coverage:
             with open(output_file,'a') as d:
                 t = d.write(','.join(line) + '\n')
 
+
+# Defining the function that uses Tabulate_BasePair_Coverage class
+def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sample_id):
+    """
+    Use the Tabulate_BasePair_Coverage class to extract the coverage profile
+    for one sample.
+    Currently I'm not checking for empty files.
+    """
+    alignment_class = Tabulate_BasePair_Coverage(reference_fasta, ref_list)
+    alignment_class.extract_bam_entries(bamfile_name) # output 3 bam files in the same folder
+    print(alignment_class.bam_root)
+    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.unique_alignments.bam', []))
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique.csv')
+    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_unique_genome.bam', []))
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
+    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_multiple_genomes.bam', []))
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
+
         
 # When running the script from command line, the following lines are executed
 if __name__ == "__main__":
-    usage = "USAGE: python Tabulate_BasePair_Coverage.py -g ref_list_file -s sample_id -o output_csv_file reference_fasta window_size input_depth_file"
+    usage = "USAGE: python Tabulate_BasePair_Coverage.py -g ref_list_file -s sample_id reference_fasta window_size input_bamfile_list"
 
     # Making default argument list structures
     p = argparse.ArgumentParser(usage=usage)
     p.add_argument(dest='ref_fasta', action='store', type=str)
     p.add_argument(dest='window_size', action='store', type=int)
-    p.add_argument(dest='input_file_name', action='store', type=str)
-    p.add_argument('-o','--output',dest='output_file_name', action='store', type=str, default=[])
+    p.add_argument(dest='input_file_list', action='store', type=str)
     p.add_argument('-g','--genomes',dest='ref_list_file_name', action='store', type=str, default=[])
     p.add_argument('-s','--sample_id',dest='sample_id', action='store', type=int, default=0)
 
@@ -249,8 +269,17 @@ if __name__ == "__main__":
 
     try:
         print(A)
-        # f = Tabulate_BasePair_Coverage(A.ref_fasta, A.ref_list_file_name)
-        # f.extract_lines_from_depth_file(A.input_file_name, A.sample_id, A.window_size, A.output_file_name)
+        with open(A.input_file_list, 'r') as f:
+            proc = []
+            for l in f:
+                p = Process(target=analyze_one_sample, args=(A.ref_fasta, A.ref_list_file_name, l.rstrip(), A.window_size, A.sample_id))
+                p.start()
+                proc.append(p)
+                sleep(10)
+        for p in proc:
+            p.join()
+        print('Script completed')
+
     except ValueError as e:
         print("ERROR: ValueError:",e)
         print(usage)
