@@ -157,6 +157,7 @@ class Tabulate_BasePair_Coverage:
                     The depth_file should be sorted by contig and also by position in the contig.
         sample_number: which column to use, starting at 0, could not be an array
         output_file: filename and full path of the output csv file
+        Description: If depth file is empty, nothing gets produced.
         """
         # Check that sample_number is not an array
         if type(sample_number) != type(int()):
@@ -190,7 +191,9 @@ class Tabulate_BasePair_Coverage:
                     coverage_block['contig_position'].append(int(tmp_line[1]))
                     coverage_block['contig_depth'].append(float(tmp_line[sample_number + 2])) # + 2 because first 2 columns are name and position 
             # since the last contig would not be written, write it here
-            self.output_one_contig_coverage(self.compute_coverage_for_one_contig(previous_contig_name, coverage_block, window_size), output_file_name)
+            # But the file might be empty, so you need to check if coverage_block is empty
+            if bool(previous_contig_name):
+                self.output_one_contig_coverage(self.compute_coverage_for_one_contig(previous_contig_name, coverage_block, window_size), output_file_name)
 
 
     def compute_coverage_for_one_contig(self, contig_name, coverage_block, window_size):
