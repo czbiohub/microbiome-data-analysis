@@ -278,7 +278,7 @@ if __name__ == "__main__":
         coreCnt = 0
         proc = []
         while not bamQueue.empty():
-            if coreCnt < coreNum::
+            if coreCnt < coreNum:
                 p = Process(target=analyze_one_sample, args=(A.ref_fasta, A.ref_list_file_name, bamQueue.get(), A.window_size, A.sample_id))
                 p.start()
                 proc.append(p)
