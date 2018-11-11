@@ -61,7 +61,7 @@ class Tabulate_BasePair_Coverage:
                 
         # Create 3 file names for unique_alignments, multiple_alignments_unique_genome, 
         # and multiple_alignments_multiple_genomes
-        file_root = bamfile.rstrip('.bam')
+        file_root = bamfile_name.rstrip('.bam')
         unique_alignment_filename = file_root + '.unique_alignments.bam'
         multiple_alignments_unique_genome_filename = file_root + '.multiple_alignments_unique_genome.bam'
         multiple_alignments_multiple_genomes_filename = file_root + '.multiple_alignments_multiple_genomes.bam'
@@ -77,6 +77,7 @@ class Tabulate_BasePair_Coverage:
             reference_mapped_to = [] # temp storage of all the strain genomes mapped to
             temp_alignments = [] # Used to temporarily store alignments
             current_read_name = ''
+            counter = 0
 
             # Alignments should be sorted by name, but it is still likely that alignments of the 
             # same read pair are interleaved.
@@ -90,7 +91,7 @@ class Tabulate_BasePair_Coverage:
                             # If the read aligns uniquely
                             # be careful here because the two alignments might be from different read pairings (unlikely though)
                             if len(reference_mapped_to) == 2:
-                                print('unique alignment')
+                                # print('unique alignment')
                                 # Output the alignment into the unique alignment file
                                 for a in temp_alignments:
                                     t = f1.write(a)
@@ -100,13 +101,13 @@ class Tabulate_BasePair_Coverage:
                                 reference_mapped_to = list(set(reference_mapped_to)) # unique elements
                                 # If the read aligns to multiple locations but on the same genome
                                 if len(reference_mapped_to) == 1:
-                                    print('multiple alignment to single genome')
+                                    # print('multiple alignment to single genome')
                                     # Output all alignments to multiple but single genome file
                                     for a in temp_alignments:
                                         t = f2.write(a)
                                 # else the read aligns to multiple genomes
                                 else:
-                                    print('multiple alignments to multiple genomes')
+                                    # print('multiple alignments to multiple genomes')
                                     # Output all alignments to multiple genomes file
                                     for a in temp_alignments:
                                         t = f3.write(a)
@@ -127,13 +128,13 @@ class Tabulate_BasePair_Coverage:
         print('\n')
 
 
-    def create_depth_file(self, bamfile_name, depthfile_name, core_num):
+    def create_depth_file(self, bamfile_name, core_num):
         """
         bamfile_name: name of the bamfile to create depth file with
-        depthfile_name: the output depth file name
         core_num: core_num is only used in sorting and is optional. Default is 2
         Description: This function calls samtools.
                      You can access the newly created bamfiles through self.bam_root
+                     The output from pysam.depth is returned as a string, no longer saved as a file
         """
         if not core_num:
             core_num = 2
@@ -141,13 +142,13 @@ class Tabulate_BasePair_Coverage:
             core_num = int(core_num)
         sorted_bamfile = bamfile_name.split('.bam')[0] + '.sortedByCoord.bam';
         pysam.sort("--threads",str(core_num),"-o",sorted_bamfile,bamfile_name)
-        pysam.depth(sorted_bamfile, ">", depthfile_name)
-
+        # The depth file is returned as one single string
+        return pysam.depth(sorted_bamfile)
 
         
-    def extract_lines_from_depth_file(self, depth_file, sample_number, window_size, output_file_name):
+    def extract_lines_from_depth_file(self, depth_file_name, sample_number, window_size, output_file_name):
         """
-        depth_file: output of samtools depth, no header, each column other than the first 2 are samples
+        depth_file_name: output of samtools depth, no header, each column other than the first 2 are samples
                     The depth_file should be sorted by contig and also by position in the contig.
         sample_number: which column to use, starting at 0, could not be an array
         output_file: filename and full path of the output csv file
@@ -163,10 +164,10 @@ class Tabulate_BasePair_Coverage:
         # Open depth file. I'm going line by line here to minimize memory usage
         # aka. I don't want to use pd.read_table to read in the entire file
         # And thus, the choice of pulling out only one column to tabulate is also a design choice
-        with open(depth_file,'r') as depth_file:
+        with open(depth_file_name,'r') as depth_file:
             coverage_block = {'contig_position' : [], 'contig_depth' : []} # define empty dictionary with two fields
             previous_contig_name = None
-            congit_name = None
+            contig_name = None
             for l in depth_file:
                 contig_name = l.split()[0]
                 if contig_name.split('_')[0] in self.ref:
@@ -209,6 +210,14 @@ class Tabulate_BasePair_Coverage:
             else:
                 coverage_vector.append('0')
         return coverage_vector
+
+
+    def output_depth_file(self, depth_file_name, alignment_depth):
+        """
+        Write the variable alignment_depth to depth_file_name
+        """
+        with open(depth_file_name, 'w') as f:
+            t = f.write(alignment_depth)
 
 
     def output_one_contig_coverage(self, line, output_file):
