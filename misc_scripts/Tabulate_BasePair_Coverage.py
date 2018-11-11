@@ -2,7 +2,7 @@ import argparse, os, pysam
 import numpy as np
 import pandas as pd
 from subprocess import call
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from time import sleep
 
 
@@ -248,9 +248,9 @@ def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sam
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.unique_alignments.bam', []))
     alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique.csv')
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_unique_genome.bam', []))
-    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_multiple_genomes.bam', []))
-    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
 
         
 # When running the script from command line, the following lines are executed
@@ -269,15 +269,30 @@ if __name__ == "__main__":
 
     try:
         print(A)
+        coreNum = 16
         with open(A.input_file_list, 'r') as f:
-            proc = []
+            bamQueue = Queue()
             for l in f:
-                p = Process(target=analyze_one_sample, args=(A.ref_fasta, A.ref_list_file_name, l.rstrip(), A.window_size, A.sample_id))
+                bamQueue.put(l.rstrip())
+        # Divde all the files into groups corresponding to number of cores.
+        coreCnt = 0
+        proc = []
+        while not bamQueue.empty():
+            if coreCnt < coreNum::
+                p = Process(target=analyze_one_sample, args=(A.ref_fasta, A.ref_list_file_name, bamQueue.get(), A.window_size, A.sample_id))
                 p.start()
                 proc.append(p)
-                sleep(10)
+                coreCnt += 1
+                sleep(10) # put 10 sec in between calling new threads 
+            else: # all 16 cores are used so wait until things finish
+                for p in proc:
+                    p.join()
+                proc = []
+                coreCnt = 0
+        # Finish up the currently running processes
         for p in proc:
             p.join()
+        # Print completion statement
         print('Script completed')
 
     except ValueError as e:
