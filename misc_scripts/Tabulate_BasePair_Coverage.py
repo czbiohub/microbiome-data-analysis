@@ -33,7 +33,9 @@ class Tabulate_BasePair_Coverage:
                     temp_contig_size = 0
                 else:
                     temp_contig_size += len(l.rstrip())
-        
+            # The last contig still needs to be processed
+            self.contig_list[temp_contig_name] = temp_contig_size
+
         # Process reference contigs
         if not reference_names:
             self.ref = list(set([x.split('_')[0] for x in list(self.contig_list.keys())]))
