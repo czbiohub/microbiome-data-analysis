@@ -6,7 +6,7 @@ from multiprocessing import Process, Queue
 from time import sleep
 
 
-def process_one_reference(input_parameter, ref_name, sample_list): 
+def process_one_reference(input_parameter, ref_name, sample_list, correction_names): 
     """
     Tabulates all the wrong unique alignment on one genome over a certain threshold.
     """
@@ -16,7 +16,7 @@ def process_one_reference(input_parameter, ref_name, sample_list):
     # For each alignment depth file
     for aln_file in sample_list:
         # Find locations that are wrong but have over threshold depth
-        with open(input_parameter.folder+'/'+aln_file+'.sortedByName.depth_unique.txt','r') as f:
+        with open(input_parameter.folder+'/'+correction_names[aln_file]+'.sortedByName.depth_unique.txt','r') as f:
             for l in f:
                 l = l.split()
                 if ref_name in l[0] and int(l[2]) >= input_parameter.threshold:
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         while not procQueue.empty():
             if coreCnt < coreNum:
                 ref_name = procQueue.get() # should be ref_name, which is a string
-                p = Process(target=process_one_reference, args=(A, ref_name, ref_grid[ref_name]))
+                p = Process(target=process_one_reference, args=(A, ref_name, ref_grid[ref_name], correction_names))
                 p.start()
                 proc.append(p)
                 coreCnt += 1
