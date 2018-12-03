@@ -19,7 +19,7 @@ def process_one_reference(input_parameter, ref_name, sample_list):
         with open(input_parameter.folder+'/'+aln_file+'.sortedByName.depth_unique.txt','r') as f:
             for l in f:
                 l = l.split()
-                if aln_file in l[0] and int(l[2]) >= input_parameter.threshold:
+                if ref_name in l[0] and int(l[2]) >= input_parameter.threshold:
                     if (l[0], int(l[1])) in temp_contigs.keys():
                         temp_contigs[(l[0], int(l[1]))] += int(l[2])
                     else:
