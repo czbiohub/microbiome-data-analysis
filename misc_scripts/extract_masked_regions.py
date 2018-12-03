@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     try:
         print(A)
-        coreNum = 16
+        coreNum = 15
 
         # Open file and read in all the strain names and files, should be a csv file
         with open(A.file,'r') as f:
