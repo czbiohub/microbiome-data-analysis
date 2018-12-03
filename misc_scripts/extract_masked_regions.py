@@ -74,7 +74,8 @@ if __name__ == "__main__":
         with open(A.correction_file, 'r') as f:
             correction_names = {}
             for l in f:
-                # There are two columns, first column is the name of the genome file
+                # There are two columns, 
+                # First column is the name of the genome file
                 # Second column is what the genome should have been
                 l = l.rstrip().split(',')
                 correction_names[l[1]] = l[0]
