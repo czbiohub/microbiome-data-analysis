@@ -44,7 +44,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(usage=usage)
     p.add_argument(dest='folder', action='store', type=str)
     p.add_argument(dest='file', action='store', type=str)
-    p.add_argument(dest-'correction_file', action='store', type=str)
+    p.add_argument(dest='correction_file', action='store', type=str)
     p.add_argument(dest='threshold', action='store', type=int)
 
     A = p.parse_args()
