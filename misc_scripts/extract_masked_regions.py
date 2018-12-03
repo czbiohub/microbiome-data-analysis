@@ -38,19 +38,20 @@ def process_one_reference(input_parameter, ref_name, sample_list):
         
 # When running the script from command line, the following lines are executed
 if __name__ == "__main__":
-    usage = "USAGE: python extract_masked_regions.py folder strain_file threshold"
+    usage = "USAGE: python extract_masked_regions.py folder strain_file correction_file threshold"
 
     # Making default argument list structures
     p = argparse.ArgumentParser(usage=usage)
     p.add_argument(dest='folder', action='store', type=str)
     p.add_argument(dest='file', action='store', type=str)
+    p.add_argument(dest-'correction_file', action='store', type=str)
     p.add_argument(dest='threshold', action='store', type=int)
 
     A = p.parse_args()
 
     try:
         print(A)
-        coreNum = 4
+        coreNum = 16
 
         # Open file and read in all the strain names and files, should be a csv file
         with open(A.file,'r') as f:
@@ -68,6 +69,16 @@ if __name__ == "__main__":
         for ref_name in list(ref_grid.keys()):
             if ref_name in ref_grid[ref_name]:
                 print(ref_name + ' is wrong: ' + ref_grid[ref_name])
+
+        # Read in strain names
+        with open(A.correction_file, 'r') as f:
+            correction_names = {}
+            for l in f:
+                # There are two columns, first column is the name of the genome file
+                # Second column is what the genome should have been
+                l = l.rstrip().split(',')
+                correction_names[l[1]] = l[0]
+        print(correction_names)
 
         # Setup the queue
         procQueue = Queue()
