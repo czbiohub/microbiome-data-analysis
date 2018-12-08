@@ -25,7 +25,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
                 # the current position is too far so a new region, or if pos on a new contig
                 # This means that the region is only 1 bp. 
                 # For this application I'm making such regions into min regions
-                if pos - left >= min_gap || new_contig_name != prev_contig_name: 
+                if pos - left >= min_gap or new_contig_name != prev_contig_name: 
                     right = left + int(min_region_size / 2) 
                     left = right - min_region_size
                     t = output_file.write(prev_contig_name + '\t' + str(left) + '\t' + str(right) + '\n')
@@ -35,7 +35,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
                     right = pos
             else: # both left and right are assigned and it's on the same contig
                 # Location of the current position is too far to the right. It belongs to a new region
-                if pos - right >= min_gap || new_contig_name != prev_contig_name: 
+                if pos - right >= min_gap or new_contig_name != prev_contig_name: 
                     # the region is already larger than min_region_size
                     if right - left >= min_region_size:
                         t = output_file.write(prev_contig_name + '\t' + str(left) + '\t' + str(right) + '\n')
