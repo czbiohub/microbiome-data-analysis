@@ -10,7 +10,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
     min_gap: minimum distance in bp between two adjacent regions.
     """
 
-    with open(depth_file, 'r') as input_file and open(bed_file, 'w') as output_file:
+    with open(depth_file, 'r') as input_file, open(bed_file, 'w') as output_file:
         # Initialize the variable place holders
         left = None
         right = None
