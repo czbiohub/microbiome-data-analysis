@@ -45,7 +45,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
                         right = (left + right) / 2 + int(min_region_size / 2)
                         left = right - min_region_size
                         t = output_file.write(prev_contig_name + '\t' + str(left) + '\t' + str(right) + '\n')
-                        left = Pos
+                        left = pos
                         right = None
                 else: # current position is still in the same region
                     right = pos
@@ -61,8 +61,8 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(usage=usage)
     p.add_argument(dest='depth_file', action='store', type=str)
     p.add_argument(dest='bed_file', action='store', type=str)
-    p.add_argument(dest='min_region_size', action='store', type=int)
-    p.add_argument(dest='min_gap', action='store', type=int)
+    p.add_argument(dest='min_region_size', action='store', type=int, default=100)
+    p.add_argument(dest='min_gap', action='store', type=int, default=1000)
 
     A = p.parse_args()
 
