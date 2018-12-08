@@ -14,7 +14,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
         # Initialize the variable place holders
         left = None
         right = None
-        prev_contig_name = 
+        prev_contig_name = None
         for l in input_file:
             l = l.split()
             new_contig_name = l[0]
