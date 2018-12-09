@@ -27,7 +27,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
                 # For this application I'm making such regions into min regions
                 if pos - left >= min_gap or new_contig_name != prev_contig_name: 
                     right = left + int(min_region_size / 2) 
-                    left = right - min_region_size
+                    left = max(0, right - min_region_size)
                     t = output_file.write(prev_contig_name + '\t' + str(left) + '\t' + str(right) + '\n')
                     left = pos
                     right = None
@@ -43,7 +43,7 @@ def depth_to_bed(depth_file, bed_file, min_region_size, min_gap):
                         right = None
                     else: # not a large enough region, create an extended region centered on right - left
                         right = int((left + right) / 2 + (min_region_size / 2))
-                        left = right - min_region_size
+                        left = max(0, right - min_region_size)
                         t = output_file.write(prev_contig_name + '\t' + str(left) + '\t' + str(right) + '\n')
                         left = pos
                         right = None
