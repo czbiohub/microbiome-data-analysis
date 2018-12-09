@@ -10,6 +10,7 @@
 # Compiled python modules #
 ###########################
 *.pyc
+__pycache__
 
 # Setuptools distribution folder #
 ##################################
