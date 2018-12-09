@@ -100,8 +100,10 @@ python $scriptFolder/split_multiple_alignment.py $tempFolder/$sampleName.bam $ma
 # Tabulate read count
 totalReads=$(( $( zcat $tempFolder/read1.fastq.gz | wc -l ) / 4 ))
 readsAfterTrim=$(( $( zcat $tempFolder/read1_trimmed.fastq.gz | wc -l ) / 4 ))
-uniqueReads=$( cat $tempFolder/unique_alignment_names.txt | wc -l )
-multipleReads=$( cat $tempFolder/multiple_alignment_names.txt | wc -l )
+uniqueReads=$( samtools view $tempFolder/$sampleName.unique_alignments.bam | cut -f1 | uniq | wc -l )
+multipleReads1=$( samtools view $tempFolder/$sampleName.multiple_alignments_multiple_genome.bam | cut -f1 | uniq | wc -l )
+multipleReads2=$( samtools view $tempFolder/$sampleName.multiple_alignments_unique_genome.bam | cut -f1 | uniq | wc -l )
+multipleReads=$(( $multipleReads1 + $multipleReads2 ))
 echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned_Uniquely,Fragments_Aligned_Multiple_Times' > $tempFolder/read_accounting.csv
 echo $sampleName','$totalReads','$readsAfterTrim','$uniqueReads','$multipleReads >> $tempFolder/read_accounting.csv
 
