@@ -322,9 +322,9 @@ if __name__ == "__main__":
     try:
         p1 = Process(target=DNA_count, args=(A.reference_list_file, A.sample_name, A.unique_alignment_file, A.multiple_align_to_multiple, A.multiple_align_to_unique, A.tabulated_alignment_file))
         p1.start()
-        p2 = Process(target=DNA_coverage, args=(A.ref_fasta, A.window_size, A.unique_alignment_file, A.multiple_align_to_unique, A.multiple_align_to_multiple))
-        p2.start()
-        p2.join()
+        #p2 = Process(target=DNA_coverage, args=(A.ref_fasta, A.window_size, A.unique_alignment_file, A.multiple_align_to_unique, A.multiple_align_to_multiple))
+        #p2.start()
+        #p2.join()
         p1.join()
         print('Script completed')
 
