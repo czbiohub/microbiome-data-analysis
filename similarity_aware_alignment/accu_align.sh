@@ -116,7 +116,7 @@ date
 aws s3 cp --quiet $tempFolder/proper_alignment_sortedByName.bam s3:/$bamOutput
 aws s3 cp --quiet $tempFolder/tabulated_alignment_fragment.csv s3:/$relativeAbundanceOutput
 aws s3 cp --quiet $tempFolder/read_accounting.csv s3:/$readAccountingOutput
-# aws s3 sync --quiet --exclude "*" --include "*.coverage*.csv" $tempFolder/ s3:/$s3Root
+aws s3 sync --quiet --exclude "*" --include "*.coverage*.csv" $tempFolder/ s3:/$s3Root
 
 source deactivate
 pwd
