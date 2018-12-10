@@ -123,4 +123,5 @@ pwd
 echo "Alignment completed."
 ls $LOCAL
 du -sh $LOCAL
+rm -rf $tempFolder
 date

@@ -40,7 +40,7 @@ print('Found '+str(len(file_names))+' samples.')
 for filename in file_names:
     temp_df = pd.read_csv(arguments.summary_file_location+'/'+filename, sep=',', header=0, index_col=0)
     sampleName = list(temp_df)[0] # always the first element
-    k = temp_df.loc[temp_df.index, sampleName] / reference_stats.loc[reference_stats.index, 'size_of_genome']
+    k = temp_df.loc[temp_df.index, sampleName] / reference_stats.loc[reference_stats.index, 'corrected_genome_size'] # before was size_of_genome
     summary_list.append(k.to_frame(name=sampleName)) # k is actually a pandas series
     # print(k.reset_index(name=sampleName))
 
