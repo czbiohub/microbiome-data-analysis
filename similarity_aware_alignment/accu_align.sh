@@ -101,7 +101,7 @@ python $scriptFolder/split_multiple_alignment.py $tempFolder/$sampleName.bam $ma
 totalReads=$(( $( zcat $tempFolder/read1.fastq.gz | wc -l ) / 4 ))
 readsAfterTrim=$(( $( zcat $tempFolder/read1_trimmed.fastq.gz | wc -l ) / 4 ))
 uniqueReads=$( samtools view $tempFolder/$sampleName.unique_alignments.bam | cut -f1 | uniq | wc -l )
-multipleReads1=$( samtools view $tempFolder/$sampleName.multiple_alignments_multiple_genome.bam | cut -f1 | uniq | wc -l )
+multipleReads1=$( samtools view $tempFolder/$sampleName.multiple_alignments_multiple_genomes.bam | cut -f1 | uniq | wc -l )
 multipleReads2=$( samtools view $tempFolder/$sampleName.multiple_alignments_unique_genome.bam | cut -f1 | uniq | wc -l )
 multipleReads=$(( $multipleReads1 + $multipleReads2 ))
 echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned_Uniquely,Fragments_Aligned_Multiple_Times' > $tempFolder/read_accounting.csv
@@ -109,7 +109,7 @@ echo $sampleName','$totalReads','$readsAfterTrim','$uniqueReads','$multipleReads
 
 # Go through the multimapped reads to assign them using a python script.
 date
-python $scriptFolder/tabulate_alignment_fragment.py -s $sampleName $bowtie2GenomeBase.fasta $referenceNameFile $tempFolder/$sampleName.unique_alignments.bam $tempFolder/$sampleName.multiple_alignments_multiple_genome.bam $tempFolder/$sampleName.multiple_alignments_unique_genome.bam $tempFolder/tabulated_alignment_fragment.csv
+python $scriptFolder/tabulate_alignment_fragment.py -s $sampleName $bowtie2GenomeBase.fasta $referenceNameFile $tempFolder/$sampleName.unique_alignments.bam $tempFolder/$sampleName.multiple_alignments_multiple_genomes.bam $tempFolder/$sampleName.multiple_alignments_unique_genome.bam $tempFolder/tabulated_alignment_fragment.csv
 date
 
 # Copy all the output files back to S3
