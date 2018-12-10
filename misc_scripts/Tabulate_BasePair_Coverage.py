@@ -244,14 +244,20 @@ class Tabulate_BasePair_Coverage:
 
 
 # Defining the function that uses Tabulate_BasePair_Coverage class
-def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sample_id):
+def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sample_id, regionsBedFile):
     """
     Use the Tabulate_BasePair_Coverage class to extract the coverage profile
     for one sample.
     Currently I'm not checking for empty files.
+    2018.12.10 Added removing reads that fall into offlimit regions
     """
     alignment_class = Tabulate_BasePair_Coverage(reference_fasta, ref_list)
-    alignment_class.extract_bam_entries(bamfile_name, 100) # output 3 bam files in the same folder
+    if regionsBedFile:
+        sampleName = bamfile_name.split('.')[0]
+        call(["bedtools", "intersect", "-abam", bamfile_name, "-v", "-b", regionsBedFile, ">", sampleName+'regionRemoved.bam'])
+        alignment_class.extract_bam_entries(sampleName+'regionRemoved.bam', 100) # output 3 bam files in the same folder
+    else:
+        alignment_class.extract_bam_entries(bam_file, 100)
     print(alignment_class.bam_root)
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.unique_alignments.bam', []))
     alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique.csv')
@@ -263,7 +269,7 @@ def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sam
         
 # When running the script from command line, the following lines are executed
 if __name__ == "__main__":
-    usage = "USAGE: python Tabulate_BasePair_Coverage.py -g ref_list_file -s sample_id reference_fasta window_size input_bamfile_list"
+    usage = "USAGE: python Tabulate_BasePair_Coverage.py -g ref_list_file -s sample_id -r regionBedFile reference_fasta window_size input_bamfile_list"
 
     # Making default argument list structures
     p = argparse.ArgumentParser(usage=usage)
@@ -272,6 +278,7 @@ if __name__ == "__main__":
     p.add_argument(dest='input_file_list', action='store', type=str)
     p.add_argument('-g','--genomes',dest='ref_list_file_name', action='store', type=str, default=[])
     p.add_argument('-s','--sample_id',dest='sample_id', action='store', type=int, default=0)
+    p.add_argument('-r','--region',dest='region_bed_file',action='store', type=str, default=[])
 
     A = p.parse_args()
 
@@ -287,7 +294,7 @@ if __name__ == "__main__":
         proc = []
         while not bamQueue.empty():
             if coreCnt < coreNum:
-                p = Process(target=analyze_one_sample, args=(A.ref_fasta, A.ref_list_file_name, bamQueue.get(), A.window_size, A.sample_id))
+                p = Process(target=analyze_one_sample, args=(A.ref_fasta, A.ref_list_file_name, bamQueue.get(), A.window_size, A.sample_id, A.region_bed_file))
                 p.start()
                 proc.append(p)
                 coreCnt += 1

@@ -309,7 +309,7 @@ if __name__ == "__main__":
     # Making default argument list structures
     p = argparse.ArgumentParser(usage=usage)
     p.add_argument('-s', dest='sample_name', action='store', type=str, default='test_sample')
-    p.add_argument('-w', dest='window_size', action='store', type=int, default=100)
+    p.add_argument('-w', dest='window_size', action='store', type=int, default=1000)
     p.add_argument(dest='ref_fasta', action='store', type=str)
     p.add_argument(dest='reference_list_file', action='store', type=str)
     p.add_argument(dest='unique_alignment_file', action='store', type=str)
