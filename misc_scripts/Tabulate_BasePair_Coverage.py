@@ -256,7 +256,7 @@ def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sam
         sampleName = bamfile_name.split('.')[0]
         bedtool_string = 'bedtools intersect -abam '+bamfile_name+' -v -b '+regionsBedFile+' > '+sampleName+'.regionRemoved.bam'
         print(bedtool_string)
-        call(bedtool_string)
+        os.system(bedtool_string)
         # call(["bedtools", "intersect", "-abam", bamfile_name, "-v", "-b", regionsBedFile, ">", sampleName+'.regionRemoved.bam'])
         alignment_class.extract_bam_entries(sampleName+'.regionRemoved.bam', 100) # output 3 bam files in the same folder
     else:
