@@ -50,7 +50,7 @@ class Tabulate_BasePair_Coverage:
         # print(self.contig_list)
 
 
-    def extract_bam_entries(self, bamfile_name):
+    def extract_bam_entries(self, bamfile_name, max_alignments):
         """
         bamfile_name: full path to bamfile name sorted by name
         entry_type: currently can be unique, multiple_all, multiple_within_genome, multiple_across_genome
@@ -58,8 +58,10 @@ class Tabulate_BasePair_Coverage:
                      align uniquely to one genome, reads that align multiple times to the same genome, and
                      reads that align multiple times to multiple genomes. Then downstream functions can
                      take one output bam or multiple output bam, create a depth file, and tabulate coverage.
+        max_alignments: if it's more than max_alignments, ignore the read.
         revision: 
         2018.11.08: handling both read 1 and read 2; add bam header
+        2018.12.09: handles orphan reads and bad
         """
         # Open the input bam file
         bamfile = pysam.AlignmentFile(bamfile_name, mode='rb')
@@ -87,21 +89,22 @@ class Tabulate_BasePair_Coverage:
             # Alignments should be sorted by name, but it is still likely that alignments of the 
             # same read pair are interleaved.
             for alignment in bamfile.fetch(until_eof=True): # until_eof is important because it maintains order of alignment within file
-                # removed alignment.is_read1, file should still be sorted by name
-                if alignment.is_paired and alignment.is_proper_pair:
+                # removed alignment.is_read1, file should still be sorted by name 2018.12.08 REMOVE NON CONCORDANT ALIGNMENTS
+                if alignment.is_paired and alignment.is_proper_pair and ((alignment.is_reverse and not alignment.mate_is_reverse) or (not alignment.is_reverse and alignment.mate_is_reverse)) and len(alignment.cigartuples) == 1:
                     # If it's a new read and If there is at least 1 alignment, aka the array is not empty
                     if alignment.query_name != current_read_name:
                         # Must have this as a separate if because otherwise reference_mapped_to will never populate
                         if reference_mapped_to:
                             # If the read aligns uniquely
                             # be careful here because the two alignments might be from different read pairings (unlikely though)
+                            # 2018.12.08 IGNORE ORPHAN PAIRS HERE. ONLY RELEVANT FOR UNIQUE MAPPED READS 
                             if len(reference_mapped_to) == 2:
                                 # print('unique alignment')
                                 # Output the alignment into the unique alignment file
                                 for a in temp_alignments:
                                     t = f1.write(a)
                             # else read aligns to multiple locations
-                            else:
+                            elif len(reference_mapped_to) > 2 and len(reference_mapped_to) < max_alignments:
                                 # De-replicate the reference list
                                 reference_mapped_to = list(set(reference_mapped_to)) # unique elements
                                 # If the read aligns to multiple locations but on the same genome
@@ -248,7 +251,7 @@ def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sam
     Currently I'm not checking for empty files.
     """
     alignment_class = Tabulate_BasePair_Coverage(reference_fasta, ref_list)
-    alignment_class.extract_bam_entries(bamfile_name) # output 3 bam files in the same folder
+    alignment_class.extract_bam_entries(bamfile_name, 100) # output 3 bam files in the same folder
     print(alignment_class.bam_root)
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.unique_alignments.bam', []))
     alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique.csv')
