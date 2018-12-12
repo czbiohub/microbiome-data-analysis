@@ -26,9 +26,9 @@ p.add_argument(dest='output_command', action='store', type=str)
 
 arguments = p.parse_args()
 
-# Create base command string
-base_string = 'aegea batch submit --queue aegea_batch --ecr-image aligner --storage /mnt=500 --memory 32000 --vcpus 8 --command='
-command_string1 = '"cd /mnt; git clone https://github.com/czbiohub/microbiome-data-analysis.git; coreNum=8; memPerCore=2G; maxInsert=3000; maxAlignments=50; genomeReferenceDir=/czbiohub-brianyu/Synthetic_Community/Genome_References/Bowtie2Index_090718; '
+# Create base command string aegea_batch or aegea_batch_demux
+base_string = 'aegea batch submit --queue aegea_batch --ecr-image aligner --storage /mnt=500 --memory 64000 --vcpus 16 --command='
+command_string1 = '"cd /mnt; git clone https://github.com/czbiohub/microbiome-data-analysis.git; coreNum=15; memPerCore=2G; maxInsert=3000; maxAlignments=50; genomeReferenceDir=/czbiohub-brianyu/Synthetic_Community/Genome_References/Bowtie2Index_090718; '
 command_string2 = 'source /mnt/microbiome-data-analysis/similarity_aware_alignment/accu_align.sh"'
 # command_string2 = 'source /mnt/microbiome-data-analysis/similarity_aware_alignment/accu_align_test.sh"'
 
@@ -65,10 +65,10 @@ with open(arguments.output_command, 'w') as command_file:
             sample_specific_file_names = 'fastq1='+run_samples.loc[sample,'fastq1']+'; fastq2='+run_samples.loc[sample,'fastq2']+'; bamOutput='+run_samples.loc[sample,'bamOutput']+'; relativeAbundanceOutput='+run_samples.loc[sample,'relativeAbundanceOutput']+'; readAccountingOutput='+run_samples.loc[sample,'readAccountingOutput']+'; s3Root='+aws_s3_output_folder+'; '
             t = command_file.write('echo "Submitting Sample '+sample+'"\n')
             t = command_file.write(base_string+command_string1+'sampleName='+sample+'; '+sample_specific_file_names+command_string2)
-            if counter % 8 == 7:
+            if counter % 32 == 31:
                 t = command_file.write('\n\nsleep 600\n\n')
             else:
-                t = command_file.write('\n\nsleep 15\n\n')
+                t = command_file.write('\n\nsleep 3\n\n')
             counter += 1
 
 # Remove temp file

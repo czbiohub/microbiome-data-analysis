@@ -90,21 +90,24 @@ class Tabulate_BasePair_Coverage:
             # same read pair are interleaved.
             for alignment in bamfile.fetch(until_eof=True): # until_eof is important because it maintains order of alignment within file
                 # removed alignment.is_read1, file should still be sorted by name 2018.12.08 REMOVE NON CONCORDANT ALIGNMENTS
-                if alignment.is_paired and alignment.is_proper_pair and ((alignment.is_reverse and not alignment.mate_is_reverse) or (not alignment.is_reverse and alignment.mate_is_reverse)) and len(alignment.cigartuples) == 1:
+                # THIS DOESN'T WORK, WHY? if alignment.is_paired and alignment.is_proper_pair and ((alignment.is_reverse and not alignment.mate_is_reverse) or (not alignment.is_reverse and alignment.mate_is_reverse)) and len(alignment.cigartuples) == 1:
+                if alignment.is_paired and alignment.is_proper_pair and len(alignment.cigartuples) == 1:
                     # If it's a new read and If there is at least 1 alignment, aka the array is not empty
                     if alignment.query_name != current_read_name:
                         # Must have this as a separate if because otherwise reference_mapped_to will never populate
                         if reference_mapped_to:
                             # If the read aligns uniquely
                             # be careful here because the two alignments might be from different read pairings (unlikely though)
+                            tmpTotRef = list(set(reference_mapped_to))
                             # 2018.12.08 IGNORE ORPHAN PAIRS HERE. ONLY RELEVANT FOR UNIQUE MAPPED READS 
-                            if len(reference_mapped_to) == 2:
+                            # ONLY COUNT IF BOTH THE SAME REFERENCE, OTHERWISE WON'T COUNT AS UNIQUE READS
+                            if len(reference_mapped_to) == 2 and len(tmpTotRef) == 1:
                                 # print('unique alignment')
                                 # Output the alignment into the unique alignment file
                                 for a in temp_alignments:
                                     t = f1.write(a)
-                            # else read aligns to multiple locations
-                            elif len(reference_mapped_to) > 2 and len(reference_mapped_to) < max_alignments:
+                            # else read aligns to multiple locations. Multiple alignments could be 2 reads mapped to 2 genome or more than 2 alignments
+                            elif (len(reference_mapped_to) > 2 and len(reference_mapped_to) < max_alignments) or (len(reference_mapped_to) == 2 and len(tmpTotRef) > 1):
                                 # De-replicate the reference list
                                 reference_mapped_to = list(set(reference_mapped_to)) # unique elements
                                 # If the read aligns to multiple locations but on the same genome
