@@ -38,7 +38,7 @@ def process_one_reference(input_parameter, ref_name, sample_list, correction_nam
         
 # When running the script from command line, the following lines are executed
 if __name__ == "__main__":
-    usage = "USAGE: python extract_masked_regions.py folder strain_file correction_file threshold"
+    usage = "USAGE: python extract_masked_regions.py folder strain_file correction_file threshold coreNum"
 
     # Making default argument list structures
     p = argparse.ArgumentParser(usage=usage)
@@ -46,12 +46,13 @@ if __name__ == "__main__":
     p.add_argument(dest='file', action='store', type=str)
     p.add_argument(dest='correction_file', action='store', type=str)
     p.add_argument(dest='threshold', action='store', type=int)
+    p.add_argument(dest='core', action='store', type=int)
 
     A = p.parse_args()
 
     try:
         print(A)
-        coreNum = 15
+        coreNum = A.core
 
         # Open file and read in all the strain names and files, should be a csv file
         with open(A.file,'r') as f:
