@@ -255,31 +255,37 @@ def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sam
     2018.12.10 Added removing reads that fall into offlimit regions
     """
     alignment_class = Tabulate_BasePair_Coverage(reference_fasta, ref_list)
+    alignment_class.extract_bam_entries(bamfile_name, 100)
+    print(alignment_class.bam_root)
     if regionsBedFile:
         sampleName = bamfile_name.split('.')[0]
-        bedtool_string = 'bedtools intersect -abam '+bamfile_name+' -v -b '+regionsBedFile+' > '+sampleName+'.regionRemoved.bam'
+        #bedtool_string = 'bedtools intersect -abam '+bamfile_name+' -v -b '+regionsBedFile+' > '+sampleName+'.regionRemoved.bam'
+        bedtool_string = 'bedtools intersect -abam '+alignment_class.bam_root+'.unique_alignments.bam'+' -v -b '+regionsBedFile+' > '+sampleName+'.unique_alignments_updated.bam'
         os.system(bedtool_string)
-        alignment_class.extract_bam_entries(sampleName+'.regionRemoved.bam', 100) # output 3 bam files in the same folder
-    else:
-        alignment_class.extract_bam_entries(bam_file, 100)
-    print(alignment_class.bam_root)
+        move_string = 'mv '+sampleName+'.unique_alignments_updated.bam'+' '+alignment_class.bam_root+'.unique_alignments.bam'
+        os.system(move_string)
+    #    alignment_class.extract_bam_entries(sampleName+'.regionRemoved.bam', 100) # output 3 bam files in the same folder
+    #else:
+    #    alignment_class.extract_bam_entries(bamfile_name, 100)
+    #print(alignment_class.bam_root)
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.unique_alignments.bam', []))
     alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique.csv')
-    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_unique_genome.bam', []))
-    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
-    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_multiple_genomes.bam', []))
-    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
+    #alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_unique_genome.bam', []))
+    #alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
+    #alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_multiple_genomes.bam', []))
+    #alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
 
         
 # When running the script from command line, the following lines are executed
 if __name__ == "__main__":
-    usage = "USAGE: python Tabulate_BasePair_Coverage.py -g ref_list_file -s sample_id -r regionBedFile reference_fasta window_size input_bamfile_list"
+    usage = "USAGE: python Tabulate_BasePair_Coverage.py -g ref_list_file -s sample_id -r regionBedFile reference_fasta window_size input_bamfile_list corenum"
 
     # Making default argument list structures
     p = argparse.ArgumentParser(usage=usage)
     p.add_argument(dest='ref_fasta', action='store', type=str)
     p.add_argument(dest='window_size', action='store', type=int)
     p.add_argument(dest='input_file_list', action='store', type=str)
+    p.add_argument(dest='corenum', action='store', type=int)
     p.add_argument('-g','--genomes',dest='ref_list_file_name', action='store', type=str, default=[])
     p.add_argument('-s','--sample_id',dest='sample_id', action='store', type=int, default=0)
     p.add_argument('-r','--region',dest='region_bed_file',action='store', type=str, default=[])
@@ -288,7 +294,7 @@ if __name__ == "__main__":
 
     try:
         print(A)
-        coreNum = 16
+        coreNum = A.corenum
         with open(A.input_file_list, 'r') as f:
             bamQueue = Queue()
             for l in f:
