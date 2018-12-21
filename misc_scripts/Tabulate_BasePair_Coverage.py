@@ -91,7 +91,8 @@ class Tabulate_BasePair_Coverage:
             for alignment in bamfile.fetch(until_eof=True): # until_eof is important because it maintains order of alignment within file
                 # removed alignment.is_read1, file should still be sorted by name 2018.12.08 REMOVE NON CONCORDANT ALIGNMENTS
                 # THIS DOESN'T WORK, WHY? if alignment.is_paired and alignment.is_proper_pair and ((alignment.is_reverse and not alignment.mate_is_reverse) or (not alignment.is_reverse and alignment.mate_is_reverse)) and len(alignment.cigartuples) == 1:
-                if alignment.is_paired and alignment.is_proper_pair and len(alignment.cigartuples) == 1:
+                if alignment.is_paired and alignment.is_proper_pair and ((alignment.is_reverse and not alignment.mate_is_reverse) or (not alignment.is_reverse and alignment.mate_is_reverse)) and len(alignment.cigartuples) == 1:
+                #if alignment.is_paired and alignment.is_proper_pair and len(alignment.cigartuples) == 1:
                     # If it's a new read and If there is at least 1 alignment, aka the array is not empty
                     if alignment.query_name != current_read_name:
                         # Must have this as a separate if because otherwise reference_mapped_to will never populate
@@ -264,16 +265,12 @@ def analyze_one_sample(reference_fasta, ref_list, bamfile_name, window_size, sam
         os.system(bedtool_string)
         move_string = 'mv '+sampleName+'.unique_alignments_updated.bam'+' '+alignment_class.bam_root+'.unique_alignments.bam'
         os.system(move_string)
-    #    alignment_class.extract_bam_entries(sampleName+'.regionRemoved.bam', 100) # output 3 bam files in the same folder
-    #else:
-    #    alignment_class.extract_bam_entries(bamfile_name, 100)
-    #print(alignment_class.bam_root)
     alignment_class.output_depth_file(alignment_class.bam_root+'.depth_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.unique_alignments.bam', []))
     alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique.csv')
-    #alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_unique_genome.bam', []))
-    #alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
-    #alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_multiple_genomes.bam', []))
-    #alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
+    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_unique_genome.bam', []))
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_unique.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_unique_multiple.csv')
+    alignment_class.output_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', alignment_class.create_depth_file(alignment_class.bam_root+'.multiple_alignments_multiple_genomes.bam', []))
+    alignment_class.extract_lines_from_depth_file(alignment_class.bam_root+'.depth_multiple_multiple.txt', sample_id, window_size, alignment_class.bam_root+'.coverage_multiple_multiple.csv')
 
         
 # When running the script from command line, the following lines are executed
