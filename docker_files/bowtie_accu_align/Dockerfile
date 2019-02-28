@@ -6,11 +6,12 @@ RUN conda install scipy numpy pandas
 RUN conda install -c bioconda -y samtools bedtools vcftools pysam sambamba picard fastqc bwa bbmap
 RUN conda install openssl=1.0
 
-RUN mkdir /work
+RUN mkdir -p /work
 WORKDIR /work
 
 # Get Repo
-RUN git clone https://github.com/czbiohub/microbiome-data-analysis.git
+RUN git clone https://github.com/czbiohub/microbiome-data-analysis.git && \
+    git checkout sunitj_dev
 
 # coreNum=4; numPerCore=1G; 
 
