@@ -21,3 +21,4 @@ LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
       software.website="https://github.com/snayfach/MIDAS" \
       software.documentation="https://github.com/snayfach/MIDAS/blob/master/README.md" \
       container.category="aligner"
+      
