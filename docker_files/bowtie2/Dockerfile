@@ -13,7 +13,7 @@ RUN conda config --add channels conda-forge
 RUN conda install bowtie2
 
 # Data location
-RUN mkdir /app
+RUN mkdir -p /app
 WORKDIR /app
 
 # Metadata
@@ -25,5 +25,4 @@ LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
       software.website="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml" \
       software.documentation="http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml" \
       container.category="tool"
-
-CMD bowtie2 --version
+      

@@ -1,5 +1,5 @@
 # Base Image
-FROM sunitjain/bowtie2:20190227
+FROM sunitjain/bowtie2:latest
 
 # Install dependencies
 RUN conda install numpy pysam
@@ -7,7 +7,7 @@ RUN conda install -c bioconda -y samtools
 RUN conda install openssl=1.0
 
 # Data location
-RUN mkdir /app
+RUN mkdir -p /app
 WORKDIR /app
 
 # Install IGGSearch
@@ -35,5 +35,4 @@ LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
       software.website="https://github.com/snayfach/IGGsearch" \
       software.documentation="https://github.com/snayfach/IGGsearch/blob/master/README.md" \
       container.category="aligner"
-
-CMD python /app/IGGsearch/run_iggsearch.py search --m1 /app/IGGsearch/test.fastq.gz --outdir /app/test --test
+      
