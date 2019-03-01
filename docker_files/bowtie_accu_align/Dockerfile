@@ -15,4 +15,4 @@ COPY . .
 
 RUN chmod -R +x ./
 
-CMD ["accu_align.sh"]
+CMD ["/mnt/accu_align.sh"]
