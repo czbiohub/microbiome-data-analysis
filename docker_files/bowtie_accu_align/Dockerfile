@@ -6,19 +6,13 @@ RUN conda install scipy numpy pandas
 RUN conda install -c bioconda -y samtools bedtools vcftools pysam sambamba picard fastqc bwa bbmap
 RUN conda install openssl=1.0
 
-RUN mkdir -p /work
-WORKDIR /work
+RUN mkdir -p /mnt
+WORKDIR /mnt
 
 # Get Repo
-RUN git clone https://github.com/czbiohub/microbiome-data-analysis.git && \
-    git checkout sunitj_dev
-
+COPY . .
 # coreNum=4; numPerCore=1G; 
 
 RUN chmod -R +x ./
 
-# ENTRYPOINT [ "bash" ]
-
-# CMD [ "accu_align.sh", "maxInsert","maxAlignments", \
-#     "genomeReferenceDir","sampleName", "trimQuality","minLength", \
-#     "kmer_value","min_kmer_value", "fastq1","fastq2" ]
+CMD ["accu_align.sh"]
