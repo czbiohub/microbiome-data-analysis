@@ -28,17 +28,22 @@ set -u
 
 ############################# SETUP ################################
 
-# LOCAL=/mnt
+# export $@
 
-OUTPUTDIR=./tmp_$( date +"%Y%m%d_%H%M%S" )
+LOCAL=$(pwd)
+
+OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
 QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
 SPECIES_OUT="${OUTPUTDIR}/midas_output"
 GENES_OUT="${OUTPUTDIR}/midas_output"
 REF_DB="${OUTPUTDIR}/reference"
-adapterFile="./data/illumina_adapters.fa"
+# adapterFile="${LOCAL}/data/illumina_adapters.fa"
+adapterFile="illumina_adapters.fa"
 defaultDB="s3://czbiohub-brianyu/Synthetic_Community/Genome_References/MIDAS/1.2/midas_db_v1.2.tar.gz"
 # remove trailing '/'
+
+head ${adapterFile}
 
 s3OutputPath=${s3OutputPath%/}
 mkdir -p ${RAW_FASTQ} ${QC_FASTQ} ${SPECIES_OUT} ${GENES_OUT}
@@ -90,9 +95,7 @@ min_kmer_value=11
 MIDAS_PARAMS="-t ${coreNum} -d ${localPath2db} --remove_temp"
 
 # Use bbduk to trim reads, -eoom exits when out of memory
-BBDUK_PARAMS="in1=${RAW_FASTQ}/${FASTQ1_FILENAME} out1=${QC_FASTQ}/${FASTQ1_FILENAME} \
-    ref=${adapterFile} ktrim=r k=${kmer_value} mink=${min_kmer_value} \
-    hdist=1 tbo qtrim=rl trimq=${trimQuality} minlen=${minLength}"
+BBDUK_PARAMS="in1=${RAW_FASTQ}/${FASTQ1_FILENAME} out1=${QC_FASTQ}/${FASTQ1_FILENAME} ref=adapters ktrim=r k=${kmer_value} mink=${min_kmer_value} hdist=1 tbo qtrim=rl trimq=${trimQuality} minlen=${minLength}"
 
 ### Single end
 if [[ -z ${fastq2} ]]; then
@@ -119,9 +122,10 @@ BBDUK="bbduk.sh -Xmx16g -eoom ${BBDUK_PARAMS}"
 ########################### Execute ################################
 
 if eval "${BBDUK}"; then
-    echo "[$(date)] BBDUK Species complete."
+    echo "[$(date)] BBDUK complete."
 else
-    echo "[$(date)] BBDUK Species failed."
+    echo "[$(date)] BBDUK failed."
+    exit 1;
 fi
 
 if eval "${MIDAS}"; then
@@ -129,8 +133,7 @@ if eval "${MIDAS}"; then
     aws s3 sync --quiet ${SPECIES_OUT}/species/ ${s3OutputPath}/Species/
 else
     echo "[$(date)] MIDAS Species failed."
+    exit 1;
 fi
 rm -rf ${SPECIES_OUT}
-
-rm -rf ${OUTPUTDIR}
 # TODO: ####################### MIDAS - Genes ##############################

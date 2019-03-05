@@ -29,7 +29,8 @@ WORKDIR /mnt
 RUN ln -s /opt/conda/bin/hs-blastn . && \
     ln -s /opt/conda/bin/bowtie2-build . && \
     ln -s /opt/conda/bin/bowtie2 . && \
-    ln -s /opt/conda/bin/samtools .
+    ln -s /opt/conda/bin/samtools . && \
+    ln -s data/illumina_adapters.fa .
 
 COPY . .
 RUN chmod +x run_midas.sh
