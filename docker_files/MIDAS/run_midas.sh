@@ -28,7 +28,7 @@ set -u
 
 ############################# SETUP ################################
 
-LOCAL=/mnt
+# LOCAL=/mnt
 
 OUTPUTDIR=./tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
