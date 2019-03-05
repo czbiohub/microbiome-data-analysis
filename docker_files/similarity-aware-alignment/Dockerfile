@@ -3,7 +3,7 @@ FROM ubuntu:16.04
 ENV DEBIAN_FRONTEND noninteractive
 
 # File Author / Maintainer
-MAINTAINER Brian Yu <brian.yu@czbiohub.org>
+MAINTAINER brian.yu@czbiohub.org
 
 # Add packages, update image, and clear cache
 RUN apt-get update
