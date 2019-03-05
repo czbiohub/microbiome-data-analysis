@@ -30,13 +30,13 @@ set -u
 
 LOCAL=/mnt
 
-OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
+OUTPUTDIR=./tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
 QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
 SPECIES_OUT="${OUTPUTDIR}/midas_output"
 GENES_OUT="${OUTPUTDIR}/midas_output"
 REF_DB="${OUTPUTDIR}/reference"
-adapterFile="/mnt/data/illumina_adapters.fa"
+adapterFile="./data/illumina_adapters.fa"
 defaultDB="s3://czbiohub-brianyu/Synthetic_Community/Genome_References/MIDAS/1.2/midas_db_v1.2.tar.gz"
 # remove trailing '/'
 
