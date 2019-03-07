@@ -151,7 +151,6 @@ else
     echo "[$(date)] MIDAS Species failed."
     exit 1;
 fi
-rm -rf ${SPECIES_OUT}
 
 ######################## MIDAS - Genes #############################
 
@@ -162,7 +161,6 @@ else
     echo "[$(date)] MIDAS Genes failed."
     exit 1;
 fi
-rm -rf ${GENES_OUT}
 
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
