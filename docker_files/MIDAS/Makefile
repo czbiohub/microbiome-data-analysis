@@ -21,6 +21,7 @@ release: build push repo-login
 	docker image tag $(NAME):latest $(ECR):latest
 	docker image tag $(NAME):$(TAG) $(ECR):$(TAG)
 	docker image push $(ECR):$(TAG)
+	docker image push $(ECR):latest
 
 ## Helpers
 
