@@ -1,17 +1,7 @@
-# Base Image
+# Base Image. Miniconda is build on ubuntu 16.04LTS
 FROM continuumio/miniconda:4.5.12
 
-# File Author / Maintainer
-MAINTAINER Sunit Jain <sunit.jain@czbiohub.org>
-
-# Metadata
-LABEL container.base.image="continuumio/miniconda:4.5.12"
-LABEL software.name="MIDAS"
-LABEL software.description="An integrated pipeline for estimating strain-level genomic variation from metagenomic data"
-LABEL software.website="https://github.com/snayfach/MIDAS"
-LABEL software.documentation="https://github.com/snayfach/MIDAS/blob/master/README.md"
-LABEL tags="omics/alignments"
-LABEL tags="type/analysis"
+ENV PATH "/opt/conda/bin:${PATH}"
 
 # Update conda to latest version.
 RUN conda update -n base -c defaults conda
@@ -21,10 +11,29 @@ RUN conda config --add channels defaults
 RUN conda config --add channels bioconda
 RUN conda config --add channels conda-forge
 
-# Install dependencies
+# Install awscli
 RUN conda install awscli
-
 # Install MIDAS
-RUN conda install midas
+RUN conda install -c bioconda -y midas vsearch hmmer bbmap
+RUN conda install openssl=1.0
 
-CMD ["midas"]
+# Metadata
+LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
+      container.base.image="continuumio/miniconda:4.5.12" \
+      software.name="MIDAS" \
+      software.description="An integrated pipeline for estimating strain-level genomic variation from metagenomic data" \
+      software.website="https://github.com/snayfach/MIDAS" \
+      software.documentation="https://github.com/snayfach/MIDAS/blob/master/README.md" \
+      container.category="aligner"
+
+RUN mkdir -p /mnt
+WORKDIR /mnt
+
+RUN ln -s /opt/conda/bin/hs-blastn . && \
+    ln -s /opt/conda/bin/bowtie2-build . && \
+    ln -s /opt/conda/bin/bowtie2 . && \
+    ln -s /opt/conda/bin/samtools .
+
+COPY . .
+RUN chmod +x run_midas.sh && \
+    echo ${PATH}
