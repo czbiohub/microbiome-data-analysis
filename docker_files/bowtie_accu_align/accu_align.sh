@@ -28,28 +28,35 @@ set -u
 # 2018.12.09 Brian Yu Added off limit region removal, coverage and fragment tabulate
 #####################################################################
 
-# Prepare the EC2 instance with the ECR image
-# /mnt has a volume of defined size mounted
-LOCAL=/mnt
+START_TIME=$SECONDS
+# export $@
+export PATH="/opt/conda/bin:${PATH}"
+# export PYTHONPATH="/opt/conda/lib/python3./site-packages/midas"
 
-adapterFile=${LOCAL}/data/illumina_adapters.fa
-offLimitRegions=${LOCAL}/data/combined_excluded_regions_threshold9.bed
-scriptFolder=${LOCAL}/scripts
-
-# Copy genome reference over
-aws s3 sync --quiet s3:/${genomeReferenceDir}/ ${LOCAL}/reference/
-bowtie2GenomeBase=${LOCAL}/reference/combined_104_reference_genomes
-referenceNameFile=${LOCAL}/reference/genome_name_list.csv
-
-# Constant definitions for bbduk
-trimQuality=25
-minLength=50
-kmer_value=23
-min_kmer_value=11
-
+echo $PATH
+LOCAL=$(pwd)
 # Set {tempFolder} definition
 tempFolder=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 mkdir ${tempFolder}
+trap '{ rm -rf ${tempFolder} ; exit 255; }' 1 
+
+adapterFile="adapters"
+offLimitRegions="./data/combined_excluded_regions_threshold9.bed"
+scriptFolder="./scripts"
+refFolder="${tempFolder}/reference"
+# Copy genome reference over
+aws s3 cp --recursive s3:/${genomeReferenceDir}/ ${refFolder}/
+bowtie2GenomeBase=${refFolder}/combined_104_reference_genomes
+referenceNameFile=${refFolder}/genome_name_list.csv
+
+ls -laR ${refFolder}
+ls -l ${bowtie2GenomeBase}.fasta
+
+# Constant definitions for bbduk
+# trimQuality=25
+minLength=50
+kmer_value=23
+min_kmer_value=11
 
 echo "Starting to Process Sample: "${sampleName}
 
@@ -58,14 +65,25 @@ aws s3 cp --quiet s3:/${fastq1} ${tempFolder}/read1.fastq.gz
 aws s3 cp --quiet s3:/${fastq2} ${tempFolder}/read2.fastq.gz
 
 # Use bbduk to trim reads, -eoom exits when out of memory
-bbduk.sh -Xmx16g -eoom in1=${tempFolder}/read1.fastq.gz in2=${tempFolder}/read2.fastq.gz out1=${tempFolder}/read1_trimmed.fastq.gz out2=${tempFolder}/read2_trimmed.fastq.gz ref=${adapterFile} ktrim=r k=${kmer_value} mink=${min_kmer_value} hdist=1 tbo qtrim=rl trimq=${trimQuality} minlen=${minLength}
+bbduk.sh -Xmx16g -eoom in1=${tempFolder}/read1.fastq.gz out1=${tempFolder}/read1_trimmed.fastq.gz \
+        in2=${tempFolder}/read2.fastq.gz out2=${tempFolder}/read2_trimmed.fastq.gz ref=${adapterFile} \
+        ktrim=r k=${kmer_value} mink=${min_kmer_value} hdist=1 tbo qtrim=rl \
+        trimq=${trimQuality} minlen=${minLength}
 	
 # bowtie2 alignment returning multiple alignments and using longer max insert size limites
 # output samtools bam file with only properly aligned paired reads.
+# Original
+if [[ ${method:-} == "Original" ]]; then
+bowtie2 -X ${maxInsert} -k ${maxAlignments} --threads ${coreNum} -t -x ${bowtie2GenomeBase} \
+        -1 ${tempFolder}/read1_trimmed.fastq.gz -2 ${tempFolder}/read2_trimmed.fastq.gz | \
+        samtools view -bh -f 0x003 -o ${tempFolder}/proper_alignment.bam -
+else
+# New
 bowtie2 -X ${maxInsert} -k ${maxAlignments} --threads ${coreNum} -t -x ${bowtie2GenomeBase} \
     -D 10 -R 2 -L 30 -i S,0,2.50 -N 0 --no-mixed --no-discordant --end-to-end \
     -1 ${tempFolder}/read1_trimmed.fastq.gz -2 ${tempFolder}/read2_trimmed.fastq.gz | \
     samtools view -bh -f 0x003 -o ${tempFolder}/proper_alignment.bam -
+fi
 
 # Sort the bam file by name
 samtools sort -@ ${coreNum} -m ${memPerCore} -n -o ${tempFolder}/proper_alignment_sortedByName.bam ${tempFolder}/proper_alignment.bam
@@ -113,3 +131,9 @@ ls ${LOCAL}
 du -sh ${LOCAL}
 rm -rf ${tempFolder}
 date
+######################### HOUSEKEEPING #############################
+DURATION=$((SECONDS - START_TIME))
+hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
+printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs
+echo "Live long and prosper"
+############################ PEACE! ################################
