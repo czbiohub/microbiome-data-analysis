@@ -23,4 +23,4 @@ LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
       software.website="" \
       container.category="aligner"
 
-RUN chmod -R +x ./
+RUN chmod -R +rx ./

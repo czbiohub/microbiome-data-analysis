@@ -40,12 +40,13 @@ tempFolder=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 mkdir ${tempFolder}
 trap '{ rm -rf ${tempFolder} ; exit 255; }' 1 
 
-adapterFile="adapters"
+adapterFile="adapters,phix"
 offLimitRegions="./data/combined_excluded_regions_threshold9.bed"
 scriptFolder="./scripts"
 refFolder="${tempFolder}/reference"
+
 # Copy genome reference over
-aws s3 cp --recursive s3:/${genomeReferenceDir}/ ${refFolder}/
+aws s3 cp --quiet --recursive s3:/${genomeReferenceDir}/ ${refFolder}/
 bowtie2GenomeBase=${refFolder}/combined_104_reference_genomes
 referenceNameFile=${refFolder}/genome_name_list.csv
 
@@ -53,10 +54,10 @@ ls -laR ${refFolder}
 ls -l ${bowtie2GenomeBase}.fasta
 
 # Constant definitions for bbduk
-# trimQuality=25
-minLength=50
-kmer_value=23
-min_kmer_value=11
+trimQuality=${trimQuality:-25}
+minLength=${minLength:-50}
+kmer_value=${kmer_value:-23}
+min_kmer_value=${min_kmer_value:-11}
 
 echo "Starting to Process Sample: "${sampleName}
 
@@ -68,7 +69,7 @@ aws s3 cp --quiet s3:/${fastq2} ${tempFolder}/read2.fastq.gz
 bbduk.sh -Xmx16g -eoom in1=${tempFolder}/read1.fastq.gz out1=${tempFolder}/read1_trimmed.fastq.gz \
         in2=${tempFolder}/read2.fastq.gz out2=${tempFolder}/read2_trimmed.fastq.gz ref=${adapterFile} \
         ktrim=r k=${kmer_value} mink=${min_kmer_value} hdist=1 tbo qtrim=rl \
-        trimq=${trimQuality} minlen=${minLength}
+        trimq=${trimQuality} minlen=${minLength} refstats=${tempFolder}/adapter_trimming_stats_per_ref.txt
 	
 # bowtie2 alignment returning multiple alignments and using longer max insert size limites
 # output samtools bam file with only properly aligned paired reads.
@@ -80,7 +81,7 @@ bowtie2 -X ${maxInsert} -k ${maxAlignments} --threads ${coreNum} -t -x ${bowtie2
 else
 # New
 bowtie2 -X ${maxInsert} -k ${maxAlignments} --threads ${coreNum} -t -x ${bowtie2GenomeBase} \
-    -D 10 -R 2 -L 30 -i S,0,2.50 -N 0 --no-mixed --no-discordant --end-to-end \
+    -D 10 -R 2 -L 31 -i S,0,2.50 -N 0 --no-mixed --no-discordant --end-to-end \
     -1 ${tempFolder}/read1_trimmed.fastq.gz -2 ${tempFolder}/read2_trimmed.fastq.gz | \
     samtools view -bh -f 0x003 -o ${tempFolder}/proper_alignment.bam -
 fi
