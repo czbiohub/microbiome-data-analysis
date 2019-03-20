@@ -124,6 +124,8 @@ date
 aws s3 cp --quiet ${tempFolder}/proper_alignment_sortedByName.bam s3:/${bamOutput}
 aws s3 cp --quiet ${tempFolder}/tabulated_alignment_fragment.csv s3:/${relativeAbundanceOutput}
 aws s3 cp --quiet ${tempFolder}/read_accounting.csv s3:/${readAccountingOutput}
+aws s3 cp --quiet ${tempFolder}/adapter_trimming_stats_per_ref.txt ${s3Root}/adapter_trimming_stats_per_ref.txt
+
 aws s3 sync --quiet --exclude "*" --include "*.coverage*.csv" ${tempFolder}/ ${s3Root}
 
 pwd
