@@ -5,6 +5,7 @@ REGISTRY=sunitjain/$(NAME)
 all: build push run
 
 build:
+	# docker image build --no-cache -t $(NAME):$(TAG) -t $(NAME):latest -f Dockerfile .
 	docker image build -t $(NAME):$(TAG) -t $(NAME):latest -f Dockerfile .
 	docker image tag $(NAME):latest $(REGISTRY):latest
 	docker image tag $(NAME):$(TAG) $(REGISTRY):$(TAG)
