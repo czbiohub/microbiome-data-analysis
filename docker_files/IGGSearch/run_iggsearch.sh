@@ -40,6 +40,7 @@ RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
 QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
 LOCAL_OUTPUT="${OUTPUTDIR}/Sync"
 s3OutputPath=${s3OutputPath%/}
+SAMPLE_NAME=$(basename ${s3OutputPath})
 
 mkdir -p "${OUTPUTDIR}" "${RAW_FASTQ}" "${QC_FASTQ}" "${LOCAL_OUTPUT}"
 trap '{ rm -rf ${OUTPUTDIR} ; exit 255; }' 1 
@@ -72,7 +73,7 @@ run_iggsearch.py search \
     --m1 "${QC_FASTQ}/read1_trimmed.fastq.gz" \
     --m2 "${QC_FASTQ}/read2_trimmed.fastq.gz" \
     --db_dir "${IGG_DB_PATH}/${LOCAL_DBNAME}" \
-    --outdir "${LOCAL_OUTPUT}/IGG_search" \
+    --outdir "${LOCAL_OUTPUT}/${SAMPLE_NAME}" \
     --threads "${coreNum}"
 
 # # To roll up counts to other taxonomic ranks
