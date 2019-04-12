@@ -1,0 +1,2 @@
+Use AMI: ami-0932e97ae70c0c6eb 
+It'll mount the EFS `microbiome-reference-data` at `/home/ec2-user/efs`
