@@ -1,31 +1,40 @@
 # Base Image
 FROM sunitjain/bowtie2:latest
 
+USER root
+
 # Install dependencies
-RUN conda install numpy pysam
-RUN conda install -c bioconda -y samtools
+RUN conda install numpy
+RUN conda install -c bioconda -y samtools pysam bbmap
+RUN conda install -c conda-forge -y awscli
 RUN conda install openssl=1.0
 
+RUN mkdir -p /mnt
+
+# map /mnt to /efs
+# VOLUME "/mnt/databases"
+
 # Data location
-RUN mkdir -p /app
-WORKDIR /app
+WORKDIR /mnt
 
 # Install IGGSearch
-RUN git clone https://github.com/snayfach/IGGsearch && \
-    chmod -R +x IGGsearch
+# RUN git clone --depth 1 https://github.com/snayfach/IGGsearch && \
+#     chmod -R +x IGGsearch
+
+# No longer required if mounting the EFS or downloading from S3
+# Download IGGdb
+# RUN cd databases && \
+#     aws s3 cp s3://czbiohub-microbiome/IGGdb/gut_only/v1.0.0/iggdb_v1.0.0_gut.tar.gz . && \
+#     tar xzf iggdb_v1.0.0_gut.tar.gz && \
+#     cd -
+
+COPY . .
+RUN chmod -R +rx ./
 
 # Set environment variables
-ENV PYTHONPATH=$PYTHONPATH:/app/IGGsearch/iggsearch
-ENV PATH=$PATH:/app/IGGsearch
-
-# Download IGGdb
-RUN mkdir databases && \
-    cd databases && \
-    run_iggsearch.py download --gut-only && \
-    tar -zxvf iggdb_v1.0.0_gut.tar.gz && \
-    cd -
-
-ENV IGG_DB=/app/databases/iggdb_v1.0.0_gut
+# ENV PYTHONPATH "/mnt/bin/iggsearch"
+# ENV PATH "/mnt/bin:/opt/conda/bin:${PATH}"
+# ENV IGG_DB "/mnt/databases/iggdb_v1.0.0_gut"
 
 # Metadata
 LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
@@ -35,4 +44,3 @@ LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
       software.website="https://github.com/snayfach/IGGsearch" \
       software.documentation="https://github.com/snayfach/IGGsearch/blob/master/README.md" \
       container.category="aligner"
-      

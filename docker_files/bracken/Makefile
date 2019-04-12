@@ -1,4 +1,4 @@
-NAME=iggsearch
+NAME=bracken
 TAG:=$(shell /bin/date +%Y%m%d%H%M%S)
 REGISTRY=sunitjain/$(NAME)
 
