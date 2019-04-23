@@ -52,7 +52,7 @@ QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
 SPECIES_OUT="${OUTPUTDIR}/midas_output"
 GENES_OUT="${OUTPUTDIR}/midas_output"
 REF_DB="${OUTPUTDIR}/reference"
-defaultDB="s3://czbiohub-brianyu/Synthetic_Community/Genome_References/MIDAS/1.2/midas_db_v1.2.tar.gz"
+defaultDB="s3://czbiohub-microbiome/ReferenceDBs/Midas/v1.2/midas_db_v1.2.tar.gz"
 
 # remove trailing '/'
 s3OutputPath=${s3OutputPath%/}
@@ -79,10 +79,10 @@ rm -rf ${localPath2db_tgz}
 ########################## PARAMETERS ##############################
 
 # Constant definitions for bbduk
-trimQuality=25
-minLength=50
-kmer_value=23
-min_kmer_value=11
+trimQuality=${trimQuality:-25}
+minLength=${minLength:-50}
+kmer_value=${kmer_value:-23}
+min_kmer_value=${min_kmer_value:-11}
 
 ## Species
 MIDAS_SPECIES_PARAMS="-t ${coreNum} -d ${localPath2db} --remove_temp"
@@ -137,6 +137,7 @@ MIDAS_GENES="run_midas.py genes ${GENES_OUT} ${MIDAS_GENES_PARAMS}"
 
 if eval "${BBDUK}"; then
     echo "[$(date)] BBDUK complete."
+    aws s3 sync ${QC_FASTQ}/ ${s3OutputPath}/BBduk/
 else
     echo "[$(date)] BBDUK failed."
     exit 1;
@@ -165,6 +166,7 @@ fi
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
 hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
-printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs
-echo "Live long and prosper"
+printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${OUTPUTDIR}/job.complete
+echo "Live long and prosper" >> ${OUTPUTDIR}/job.complete
 ############################ PEACE! ################################
+aws s3 cp ${OUTPUTDIR}/job.complete ${s3OutputPath}/
