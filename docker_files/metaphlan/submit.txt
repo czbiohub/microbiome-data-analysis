@@ -22,3 +22,6 @@ aegea batch submit --retry-attempts 3 --queue microbiome-lowPriority --image sun
 # Batch Submission
 python create_metaphlan_submission_commands.py ../../SeedFile/strain_verification_alignment_filenames_v2.csv s3://czbiohub-microbiome/Synthetic_Community/2019.04.09_strain_only_metaphlan2_analysis strain_check.txt -i sunitjain/metaphlan2:20190415092344 -q microbiome-highPriority
 cat strain_check.txt | parallel --joblog strain_only.joblog --retries 3 --delay 1s "{}" &> strain_only_submission_20190415.log &
+
+# Terminate Jobs
+jq -r .jobId mbfv2_submission_20190422.log | parallel --joblog mbfv2.terminate.joblog "aws batch terminate-job --job-id {} --reason 'issue with container image'"
