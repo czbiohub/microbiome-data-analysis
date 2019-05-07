@@ -35,12 +35,12 @@ p = argparse.ArgumentParser(usage=usage)
 p.add_argument(dest='seedfile', action='store', type=str)
 p.add_argument(dest='s3output_root', type=str) # include s3://...
 p.add_argument(dest='output_command', action='store', type=str)
-p.add_argument('-i', '--image', dest='image', action='store', type=str, default='sunitjain/midas:20190422013113')
+p.add_argument('-i', '--image', dest='image', action='store', type=str, default='sunitjain/midas:latest')
 p.add_argument('-m', '--memory', dest='memory', action='store', type=int, default=32000)
 p.add_argument('-c', '--core', dest='vcpus', action='store', type=int, default=8)
 p.add_argument('-s', '--storage', dest='storage', action='store', type=int, default=500) # the minimum for AWS is 500
 p.add_argument('-q', '--queue', dest='queue', action='store', type=str, default='microbiome-highPriority')
-p.add_argument('-r', '--retry', dest='max_retries', action='store', type=str, default='3')
+p.add_argument('-r', '--retry', dest='max_retries', action='store', type=str, default='1')
 p.add_argument('--subset', dest='subsetReads', action='store', type=str, default='\'\'')
 p.add_argument('--hardTrim', dest='hardTrim', action='store', type=str, default='\'\'')
 
@@ -54,14 +54,15 @@ command_string1 = '"export coreNum='+str(arguments.vcpus)+'; '
 command_string2 = './run_midas.sh"'
 
 # Read in seedfile, column 1 (ie 2) needs to be sampleName
-run_samples = pd.read_csv(arguments.seedfile, sep='\t', header=0, index_col='sampleName') 
+run_samples = pd.read_csv(arguments.seedfile, sep=',', header=0, index_col='sampleName') 
 # print(run_samples)
 
 # Read in existing output THIS PART NEEDS TO BE UPDATED
-aws_s3_prefix = re.sub(s3_bucket,'',arguments.s3output_root)
+s3output_root = re.sub(r'\/$','',arguments.s3output_root)
+# print(s3output_root)
+aws_s3_prefix = re.sub(s3_bucket,'',s3output_root)
 # print(aws_s3_prefix)
 output_content = boto3.client('s3').list_objects(Bucket=re.sub(r'^s3\:\/\/|\/$','',s3_bucket), Prefix=aws_s3_prefix)
-# print(arguments.s3output_root)
 
 finished_samples = []
 # boto3's client.list_objects return an 8 length dictionary with 'Content' as the first element if the folder exists
@@ -85,7 +86,7 @@ with open(arguments.output_command, 'w') as command_file:
         # If the sample is not already processed, (subprocess.PIPE must be capitalized)
         if sample not in finished_samples:
             # If you only want a section of the samples analyzed
-            sample_specific_file_names = 'export fastq1='+run_samples.loc[sample,'fastq1']+'; export fastq2='+run_samples.loc[sample,'fastq2']+'; export s3OutputPath='+arguments.s3output_root+'/'+sample+'/;'
+            sample_specific_file_names = 'export fastq1='+run_samples.loc[sample,'fastq1']+'; export fastq2='+run_samples.loc[sample,'fastq2']+'; export s3OutputPath='+s3output_root+'/'+sample+';'
             t = command_file.write(base_string+command_string1+sample_specific_file_names+command_string2)
             command_file.write('\n')
 
