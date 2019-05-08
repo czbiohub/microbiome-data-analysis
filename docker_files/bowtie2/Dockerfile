@@ -4,17 +4,16 @@ FROM continuumio/miniconda3:4.5.12
 # Update conda to latest version.
 RUN conda update -n base -c defaults conda
 
-# Add channels
-RUN conda config --add channels defaults
-RUN conda config --add channels bioconda
-RUN conda config --add channels conda-forge
-
 # Install Bowtie2
-RUN conda install bowtie2
+RUN conda install -c bioconda -y bowtie2 samtools bbmap
+RUN conda install -c conda-forge -y awscli
 
 # Data location
-RUN mkdir -p /app
-WORKDIR /app
+RUN mkdir -p /mnt
+WORKDIR /mnt
+
+COPY . .
+RUN chmod -R +rx ./
 
 # Metadata
 LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \

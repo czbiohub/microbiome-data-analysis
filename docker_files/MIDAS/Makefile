@@ -13,6 +13,7 @@ build:
 push:
 	docker image push $(REGISTRY):$(TAG)
 	docker image push $(REGISTRY):latest
+	echo "sunitjain/$(NAME):$(TAG)" > LATEST
 
 run:
 	docker container run --rm $(NAME):latest

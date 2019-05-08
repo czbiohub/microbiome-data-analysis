@@ -36,6 +36,7 @@
 
 set -e
 set -u
+set -o pipefail
 
 ############################# SETUP ################################
 START_TIME=$SECONDS
@@ -48,17 +49,26 @@ LOCAL=$(pwd)
 
 OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
-QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
-SPECIES_OUT="${OUTPUTDIR}/midas_output"
-GENES_OUT="${OUTPUTDIR}/midas_output"
 REF_DB="${OUTPUTDIR}/reference"
-defaultDB="s3://czbiohub-brianyu/Synthetic_Community/Genome_References/MIDAS/1.2/midas_db_v1.2.tar.gz"
+
+LOCAL_OUTPUT="${OUTPUTDIR}/Sync"
+QC_FASTQ="${LOCAL_OUTPUT}/trimmed_fastq"
+LOG_DIR="${LOCAL_OUTPUT}/Logs"
+defaultDB="s3://czbiohub-microbiome/ReferenceDBs/Midas/v1.2/midas_db_v1.2.tar.gz"
 
 # remove trailing '/'
 s3OutputPath=${s3OutputPath%/}
-mkdir -p ${OUTPUTDIR} ${RAW_FASTQ} ${QC_FASTQ} ${SPECIES_OUT} ${GENES_OUT}
+SAMPLE_NAME=$(basename ${s3OutputPath})
+SPECIES_OUT="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
+GENES_OUT="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
 
-trap '{ rm -rf ${OUTPUTDIR} ; exit 255; }' 1 
+mkdir -p ${OUTPUTDIR} ${RAW_FASTQ} ${QC_FASTQ} ${SPECIES_OUT} ${GENES_OUT} ${LOG_DIR}
+
+trap '{ 
+    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/;
+    rm -rf ${OUTPUTDIR} ; 
+    exit 255; 
+    }' 1 
 
 ############################ DATABASE ##############################
 
@@ -79,10 +89,10 @@ rm -rf ${localPath2db_tgz}
 ########################## PARAMETERS ##############################
 
 # Constant definitions for bbduk
-trimQuality=25
-minLength=50
-kmer_value=23
-min_kmer_value=11
+trimQuality=${trimQuality:-25}
+minLength=${minLength:-50}
+kmer_value=${kmer_value:-23}
+min_kmer_value=${min_kmer_value:-11}
 
 ## Species
 MIDAS_SPECIES_PARAMS="-t ${coreNum} -d ${localPath2db} --remove_temp"
@@ -129,14 +139,15 @@ fi
 
 ########################### EXECUTION ##############################
 
-BBDUK="bbduk.sh -Xmx16g -eoom ${BBDUK_PARAMS}"
-MIDAS_SPECIES="run_midas.py species ${SPECIES_OUT} ${MIDAS_SPECIES_PARAMS}"
-MIDAS_GENES="run_midas.py genes ${GENES_OUT} ${MIDAS_GENES_PARAMS}"
+BBDUK="bbduk.sh -Xmx16g -eoom ${BBDUK_PARAMS} | tee -a ${LOG_DIR}/bbduk.log.txt"
+MIDAS_SPECIES="run_midas.py species ${SPECIES_OUT} ${MIDAS_SPECIES_PARAMS} | tee -a ${LOG_DIR}/midas_species.log.txt"
+MIDAS_GENES="run_midas.py genes ${GENES_OUT} ${MIDAS_GENES_PARAMS} | tee -a ${LOG_DIR}/midas_genes.log.txt"
 
 ############################# BBDUK ################################
 
 if eval "${BBDUK}"; then
     echo "[$(date)] BBDUK complete."
+    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/
 else
     echo "[$(date)] BBDUK failed."
     exit 1;
@@ -146,7 +157,7 @@ fi
 
 if eval "${MIDAS_SPECIES}"; then
     echo "[$(date)] MIDAS Species complete. Syncing output to ${s3OutputPath}"
-    aws s3 sync ${SPECIES_OUT}/ ${s3OutputPath}/
+    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/
 else
     echo "[$(date)] MIDAS Species failed."
     exit 1;
@@ -156,7 +167,7 @@ fi
 
 if eval "${MIDAS_GENES}"; then
     echo "[$(date)] MIDAS Genes complete. Syncing output to ${s3OutputPath}"
-    aws s3 sync ${GENES_OUT}/ ${s3OutputPath}/
+    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/
 else
     echo "[$(date)] MIDAS Genes failed."
     exit 1;
@@ -165,6 +176,7 @@ fi
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
 hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
-printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs
-echo "Live long and prosper"
+printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${OUTPUTDIR}/job.complete
+echo "Live long and prosper" >> ${OUTPUTDIR}/job.complete
 ############################ PEACE! ################################
+aws s3 cp ${OUTPUTDIR}/job.complete ${s3OutputPath}/
