@@ -4,6 +4,7 @@
 
 set -e
 set -u
+set -o pipefail
 
 ####################################################################
 # accu_align.sh
@@ -16,9 +17,9 @@ set -u
 #
 # Variables required from sourcing script
 # coreNum=4; numPerCore=1G; maxInsert=3000; maxAlignments=200;
-# genomeReferenceDir=/czbiohub-brianyu/Synthetic_Community/Genome_References/Bowtie2Index_090718
-# sampleName; fastq1=/czbiohub-brianyu/...; fastq2;
-# bamOutput; relativeAbundanceOutput; readAccountingOutput
+# S3DBPATH=/czbiohub-microbiome/Synthetic_Community/Genome_References/Bowtie2Index_090718
+# SAMPLE_NAME; fastq1=/czbiohub-microbiome/...; fastq2;
+# BAM_OUTPUT; REL_AB_OUTPUT; READ_ACC_OUTPUT
 #
 # bbtools assumes 16G of memory -Xmx16g; needs sambamba in conda env
 #
@@ -31,112 +32,213 @@ set -u
 START_TIME=$SECONDS
 # export $@
 export PATH="/opt/conda/bin:${PATH}"
-# export PYTHONPATH="/opt/conda/lib/python3./site-packages/midas"
+
+coreNum="${coreNum:-15}"
+memPerCore="${memPerCore:-2G}"
+maxInsert="${maxInsert:-3000}"
+maxAlignments="${maxAlignments:-200}"
+minPercId="${minPercId:-0}"
+minReadQuality="${minReadQuality:-0}"
+minMapQuality="${minMapQuality:-10}"
+minAlnCov="${minAlnCov:-0}"
+
+# Inputs
+# S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/bowtie_accu_align/2019-04-30_StrainVerification/Dorea-longicatena-DSM-13814
+# fastq1=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R1_001.fastq.gz
+# fastq2=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R2_001.fastq.gz
+
+S3DBPATH=s3://czbiohub-microbiome/Synthetic_Community/Genome_References/Bowtie2Index_090718
+REFDBNAME=combined_104_reference_genomes
+
+SAMPLE_NAME=$(basename ${S3OUTPUTPATH})
 
 echo $PATH
 LOCAL=$(pwd)
-# Set {tempFolder} definition
-tempFolder=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
-mkdir ${tempFolder}
-trap '{ rm -rf ${tempFolder} ; exit 255; }' 1 
+
+# Setup directory structure
+OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
+RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
+QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
+TMP_OUTPUTS="${OUTPUTDIR}/bowtie2"
+LOCAL_OUTPUT="${OUTPUTDIR}/Sync"
+LOG_DIR="${LOCAL_OUTPUT}/Logs"
+STATS_DIR="${LOCAL_OUTPUT}/Stats"
+ACCU_ALN_OUTPUT="${LOCAL_OUTPUT}/accu_align"
+GENOME_COV_OUTPUT="${LOCAL_OUTPUT}/genome_coverage"
+S3OUTPUTPATH=${S3OUTPUTPATH%/}
+S3DBPATH=${S3DBPATH%/}
+LOCAL_DB_PATH="${OUTPUTDIR}/reference"
+
+mkdir -p "${OUTPUTDIR}" "${LOCAL_OUTPUT}" "${LOG_DIR}" "${RAW_FASTQ}" "${QC_FASTQ}" "${STATS_DIR}"
+mkdir -p "${LOCAL_DB_PATH}" "${ACCU_ALN_OUTPUT}" "${TMP_OUTPUTS}" "${GENOME_COV_OUTPUT}"
+
+trap '{ aws s3 sync "${LOCAL_OUTPUT}" "${S3OUTPUTPATH}";
+    rm -rf ${OUTPUTDIR} ; 
+    exit 255; }' 1 
 
 adapterFile="adapters,phix"
-offLimitRegions="./data/combined_excluded_regions_threshold9.bed"
+# offLimitRegions="./data/combined_excluded_regions_threshold9.bed"
 scriptFolder="./scripts"
-refFolder="${tempFolder}/reference"
+DBNAME=${LOCAL_DB_PATH}/${REFDBNAME}
 
 # Copy genome reference over
-aws s3 cp --quiet --recursive s3:/${genomeReferenceDir}/ ${refFolder}/
-bowtie2GenomeBase=${refFolder}/combined_104_reference_genomes
-referenceNameFile=${refFolder}/genome_name_list.csv
-
-ls -laR ${refFolder}
-ls -l ${bowtie2GenomeBase}.fasta
+aws s3 sync --quiet ${S3DBPATH}/ ${LOCAL_DB_PATH}/
+referenceNameFile=${LOCAL_DB_PATH}/genome_name_list.csv
 
 # Constant definitions for bbduk
-trimQuality=${trimQuality:-25}
+trimQuality="${trimQuality:-25}"
 minLength=${minLength:-50}
 kmer_value=${kmer_value:-23}
 min_kmer_value=${min_kmer_value:-11}
 
-echo "Starting to Process Sample: "${sampleName}
+echo "Starting to Process Sample: "${SAMPLE_NAME}
 
 # Copy fastq.gz files from S3, only 2 files per sample
-aws s3 cp --quiet s3:/${fastq1} ${tempFolder}/read1.fastq.gz
-aws s3 cp --quiet s3:/${fastq2} ${tempFolder}/read2.fastq.gz
+aws s3 cp --quiet ${fastq1} ${RAW_FASTQ}/read1.fastq.gz
+aws s3 cp --quiet ${fastq2} ${RAW_FASTQ}/read2.fastq.gz
 
 # Use bbduk to trim reads, -eoom exits when out of memory
-bbduk.sh -Xmx16g -eoom in1=${tempFolder}/read1.fastq.gz out1=${tempFolder}/read1_trimmed.fastq.gz \
-        in2=${tempFolder}/read2.fastq.gz out2=${tempFolder}/read2_trimmed.fastq.gz ref=${adapterFile} \
-        ktrim=r k=${kmer_value} mink=${min_kmer_value} hdist=1 tbo qtrim=rl \
-        trimq=${trimQuality} minlen=${minLength} refstats=${tempFolder}/adapter_trimming_stats_per_ref.txt
+bbduk.sh -Xmx16g -eoom \
+    in1=${RAW_FASTQ}/read1.fastq.gz \
+    in2=${RAW_FASTQ}/read2.fastq.gz \
+    out1=${QC_FASTQ}/read1_trimmed.fastq.gz \
+    out2=${QC_FASTQ}/read2_trimmed.fastq.gz \
+    ref=${adapterFile} \
+    ktrim=r \
+    k=${kmer_value} \
+    mink=${min_kmer_value} \
+    hdist=1 tbo qtrim=rl \
+    trimq=${trimQuality} \
+    minlen=${minLength} \
+    refstats=${STATS_DIR}/adapter_trimming_stats_per_ref.txt |\
+    tee -a ${LOG_DIR}/bbduk.log.txt
 	
 # bowtie2 alignment returning multiple alignments and using longer max insert size limites
 # output samtools bam file with only properly aligned paired reads.
-# Original
-if [[ ${method:-} == "Original" ]]; then
-bowtie2 -X ${maxInsert} -k ${maxAlignments} --threads ${coreNum} -t -x ${bowtie2GenomeBase} \
-        -1 ${tempFolder}/read1_trimmed.fastq.gz -2 ${tempFolder}/read2_trimmed.fastq.gz | \
-        samtools view -bh -f 0x003 -o ${tempFolder}/proper_alignment.bam -
-else
-# New
-bowtie2 -X ${maxInsert} -k ${maxAlignments} --threads ${coreNum} -t -x ${bowtie2GenomeBase} \
-    -D 10 -R 2 -L 31 -i S,0,2.50 -N 0 --no-mixed --no-discordant --end-to-end \
-    -1 ${tempFolder}/read1_trimmed.fastq.gz -2 ${tempFolder}/read2_trimmed.fastq.gz | \
-    samtools view -bh -f 0x003 -o ${tempFolder}/proper_alignment.bam -
-fi
+bowtie2 -t -D 10 -R 2 -L 31 -i S,0,2.50 -N 0 \
+    -X ${maxInsert} \
+    -k ${maxAlignments} \
+    --threads ${coreNum} \
+    -x ${DBNAME} \
+    --no-mixed \
+    --no-discordant \
+    --end-to-end \
+    --no-unal \
+    -1 ${QC_FASTQ}/read1_trimmed.fastq.gz \
+    -2 ${QC_FASTQ}/read2_trimmed.fastq.gz | \
+    samtools view \
+        -@ ${coreNum} \
+        -bh \
+        -f 3 \
+        -o ${ACCU_ALN_OUTPUT}/${SAMPLE_NAME}.bam - |\
+    tee -a ${LOG_DIR}/read_mapping.log.txt
 
-# Sort the bam file by name
-samtools sort -@ ${coreNum} -m ${memPerCore} -n -o ${tempFolder}/proper_alignment_sortedByName.bam ${tempFolder}/proper_alignment.bam
+# Mark PCR Duplicates
+samtools sort \
+    -n \
+    -@ ${coreNum} \
+    -m ${memPerCore} \
+    -O BAM \
+    ${ACCU_ALN_OUTPUT}/${SAMPLE_NAME}.bam |\
+samtools fixmate \
+    -O BAM \
+    -cm \
+    - - | \
+samtools sort \
+    -@ ${coreNum} \
+    -m ${memPerCore} \
+    -O BAM \
+    - |\
+samtools markdup \
+    -s \
+    -S - \
+    ${TMP_OUTPUTS}/${SAMPLE_NAME}.coord_sorted.markdup.bam |\
+    tee -a ${LOG_DIR}/samtools_markdup.log.txt
+
+# 3328 =
+#   not primary alignment (0x100)
+#   read is PCR or optical duplicate (0x400)
+#   supplementary alignment (0x800)
+# samtools view -F 3328 -q 10 Dorea-longicatena-DSM-13814.processed.bam | cut -f1 | sort | uniq | wc -l
 
 # Remove reads that fall into off limit regions
-bedtools intersect -abam ${tempFolder}/proper_alignment_sortedByName.bam -v -b ${offLimitRegions} > ${tempFolder}/${sampleName}.bam
+# bedtools intersect \
+#     -abam ${TMP_OUTPUTS}/${SAMPLE_NAME}.coord_sorted.markdup.bam \
+#     -v -b ${offLimitRegions} 1> \
+#     ${TMP_OUTPUTS}/${SAMPLE_NAME}.coord_sorted.markdup.offlim_rm.bam |\
+#     tee -a ${LOG_DIR}/bedtools_offlimits.log.txt
+
+OUTPUT_PREFIX="${SAMPLE_NAME}.processed"
+    
+samtools sort \
+    -n \
+    -@ ${coreNum} \
+    -m ${memPerCore} \
+    -O BAM \
+    -o ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.bam \
+    ${TMP_OUTPUTS}/${SAMPLE_NAME}.coord_sorted.markdup.bam |\
+    tee -a ${LOG_DIR}/samtools_sort_by_name_2.log.txt
+# ${TMP_OUTPUTS}/${SAMPLE_NAME}.coord_sorted.markdup.offlim_rm.bam |\
 
 # Split bam files into 3 bam files
-python ${scriptFolder}/split_multiple_alignment.py ${tempFolder}/${sampleName}.bam ${maxAlignments}
-
-# Pull out the uniquely mapped alignments sorted by index and tabulate those
-#samtools view ${tempFolder}/proper_alignment_sortedByName.bam | cut -f 1 | uniq -c | awk '{$1=$1;print}' | tr ' ' '\t' > ${tempFolder}/proper_alignment.count
-#awk -F '\t' '$1==2 {print $2}' ${tempFolder}/proper_alignment.count > ${tempFolder}/unique_alignment_names.txt
-#filterbyname.sh -Xmx16g -eoom in=${tempFolder}/proper_alignment_sortedByName.bam out=${tempFolder}/unique_alignment_sortedByName.bam names=${tempFolder}/unique_alignment_names.txt include=t ow=t
-
-# Pull out the multi-mapped reads and save for later
-#awk -F '\t' '$1>2 {print $2}' ${tempFolder}/proper_alignment.count > ${tempFolder}/multiple_alignment_names.txt
-#filterbyname.sh -Xmx16g -eoom in=${tempFolder}/proper_alignment_sortedByName.bam out=${tempFolder}/multiple_alignment_sortedByName.bam names=${tempFolder}/multiple_alignment_names.txt include=t ow=t
+python ${scriptFolder}/split_multiple_alignment.py \
+    -bam ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.bam \
+    -max_align ${maxAlignments} \
+    -min_pid ${minPercId} \
+    -min_readq ${minReadQuality} \
+    -min_mapq ${minMapQuality} \
+    -min_aln_cov ${minAlnCov} |\
+    tee -a ${LOG_DIR}/split_multiple_alignment.log.txt
 
 # Tabulate read count
-
-totalReads=$(( $( zcat ${tempFolder}/read1.fastq.gz | wc -l ) / 4 ))
-readsAfterTrim=$(( $( zcat ${tempFolder}/read1_trimmed.fastq.gz | wc -l ) / 4 ))
-uniqueReads=$( samtools view ${tempFolder}/${sampleName}.unique_alignments.bam | cut -f1 | uniq | wc -l )
-multipleReads1=$( samtools view ${tempFolder}/${sampleName}.multiple_alignments_multiple_genomes.bam | cut -f1 | uniq | wc -l )
-multipleReads2=$( samtools view ${tempFolder}/${sampleName}.multiple_alignments_unique_genome.bam | cut -f1 | uniq | wc -l )
+totalReads=$(( $( zcat ${RAW_FASTQ}/read1.fastq.gz | wc -l ) / 4 ))
+readsAfterTrim=$(( $( zcat ${QC_FASTQ}/read1_trimmed.fastq.gz | wc -l ) / 4 ))
+uniqueReads=$( samtools view -f 0x40 ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.unique_alignments.bam | cut -f1 | sort -u | wc -l )
+multipleReads1=$( samtools view -f 0x40 ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_multiple_genomes.bam | cut -f1 | sort -u | wc -l )
+multipleReads2=$( samtools view -f 0x40 ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_unique_genome.bam | cut -f1 | sort -u | wc -l )
 multipleReads=$(( multipleReads1 + multipleReads2 ))
-echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned_Uniquely,Fragments_Aligned_Multiple_Times' > ${tempFolder}/read_accounting.csv
-echo ${sampleName}','${totalReads}','${readsAfterTrim}','${uniqueReads}','${multipleReads} >> ${tempFolder}/read_accounting.csv
+echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned_Uniquely,Fragments_Aligned_Multiple_Times' > ${ACCU_ALN_OUTPUT}/read_accounting.csv
+echo ${SAMPLE_NAME}','${totalReads}','${readsAfterTrim}','${uniqueReads}','${multipleReads} >> ${ACCU_ALN_OUTPUT}/read_accounting.csv
 
 # Go through the multimapped reads to assign them using a python script.
 date
-python ${scriptFolder}/tabulate_alignment_fragment.py -s ${sampleName} ${bowtie2GenomeBase}.fasta ${referenceNameFile} ${tempFolder}/${sampleName}.unique_alignments.bam ${tempFolder}/${sampleName}.multiple_alignments_multiple_genomes.bam ${tempFolder}/${sampleName}.multiple_alignments_unique_genome.bam ${tempFolder}/tabulated_alignment_fragment.csv
+# bedtools genomecov \
+#     -ibam ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.unique_alignments.bam 1> \
+#     ${GENOME_COV_OUTPUT}/${OUTPUT_PREFIX}.unique_alignments.bed |\
+#     tee -a ${LOG_DIR}/genomeCov_unique_alignment.log.txt
+
+# # multiple 1
+# bedtools genomecov \
+#     -ibam ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_multiple_genomes.bam 1> \
+#     ${GENOME_COV_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_multiple_genomes.bed |\
+#     tee -a ${LOG_DIR}/genomeCov_multiple_alignments_multiple_genomes.log.txt
+
+# # multiple 2
+# bedtools genomecov \
+#     -ibam ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_unique_genome.bam 1> \
+#     ${GENOME_COV_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_unique_genome.bed |\
+#     tee -a ${LOG_DIR}/genomeCov_multiple_alignments_unique_genome.log.txt
+
+python ${scriptFolder}/tabulate_alignment_fragment.py \
+    -s ${SAMPLE_NAME} \
+    ${DBNAME}.fasta \
+    ${referenceNameFile} \
+    ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.unique_alignments.bam \
+    ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_multiple_genomes.bam \
+    ${ACCU_ALN_OUTPUT}/${OUTPUT_PREFIX}.multiple_alignments_unique_genome.bam \
+    ${ACCU_ALN_OUTPUT}/tabulated_alignment_fragment.csv
 date
-
-# Copy all the output files back to S3
-aws s3 cp --quiet ${tempFolder}/proper_alignment_sortedByName.bam s3:/${bamOutput}
-aws s3 cp --quiet ${tempFolder}/tabulated_alignment_fragment.csv s3:/${relativeAbundanceOutput}
-aws s3 cp --quiet ${tempFolder}/read_accounting.csv s3:/${readAccountingOutput}
-aws s3 cp --quiet ${tempFolder}/adapter_trimming_stats_per_ref.txt ${s3Root}/adapter_trimming_stats_per_ref.txt
-
-aws s3 sync --quiet --exclude "*" --include "*.coverage*.csv" ${tempFolder}/ ${s3Root}
 
 pwd
 echo "Alignment completed."
 ls ${LOCAL}
 du -sh ${LOCAL}
-rm -rf ${tempFolder}
 date
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
 hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
-printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs
-echo "Live long and prosper"
+printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${LOCAL_OUTPUT}/job.complete
+echo "Live long and prosper" >> ${LOCAL_OUTPUT}/job.complete
 ############################ PEACE! ################################
+## Sync output
+aws s3 sync --quiet "${LOCAL_OUTPUT}" "${S3OUTPUTPATH}"
