@@ -7,7 +7,8 @@ output_command: the output file generated with aegea batch commands
 Description:    This function generates all the commands needed to submit batch jobs 
                 on AWS batch using aegea. Input seedfile required.
 
-Author: Brian Yu
+Author: Brian Yu 
+Updates by : Sunit Jain
 
 Revision History:
 2018.09.10 Created
@@ -36,7 +37,7 @@ p = argparse.ArgumentParser(usage=usage)
 p.add_argument(dest='seedfile', action='store', type=str)
 p.add_argument(dest='s3output_root', type=str) # include s3://...
 p.add_argument(dest='output_command', action='store', type=str)
-p.add_argument('-i', '--image', dest='image', action='store', type=str, default='sunitjain/bowtie_accu_align:latest')
+p.add_argument('-i', '--image', dest='image', action='store', type=str, default='sunitjain/ninjamap:latest')
 p.add_argument('-m', '--memory', dest='memory', action='store', type=int, default=64000)
 p.add_argument('-c', '--core', dest='vcpus', action='store', type=int, default=16)
 p.add_argument('-s', '--storage', dest='storage', action='store', type=int, default=500) # the minimum for AWS is 500
@@ -53,7 +54,7 @@ mem_per_core=str(int(arguments.memory/(arguments.vcpus*1000)))+'G'
 s3_bucket = 's3://czbiohub-microbiome/'
 base_string = 'aegea batch submit --retry-attempts '+arguments.max_retries+' --queue '+arguments.queue+' --image '+arguments.image+' --storage /mnt='+str(arguments.storage)+' --memory '+str(arguments.memory)+' --vcpus '+str(arguments.vcpus)+' --command='
 command_string1 = '"export coreNum='+str(arguments.vcpus)+'; export memPerCore='+mem_per_core+'; '
-command_string2 = './accu_align.sh"'
+command_string2 = './ninjaMap.sh"'
 
 # Read in seedfile, column 1 (ie 2) needs to be sampleName
 run_samples = pd.read_csv(arguments.seedfile, sep=',', header=0, index_col='sampleName') 
