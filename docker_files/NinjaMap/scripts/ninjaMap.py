@@ -6,6 +6,7 @@
 # MAJOR ASSUMPTION 1: We will always have a complete genome for organisms (exact strain) that we seek in the sample.
 
 import argparse
+import gzip
 import logging
 import os
 import pysam
@@ -13,9 +14,24 @@ import re
 import sys
 
 from collections import defaultdict, Counter
+from time import perf_counter as timer
+
+start = timer()
 ###############################################################################
 # Functions for making this more robust
 ###############################################################################
+def human_time(time):
+    time = abs(time)
+    day = time // (24 * 3600)
+    time = time % (24 * 3600)
+    hour = time // 3600
+    time %= 3600
+    minutes = time // 60
+    time %= 60
+    seconds = time
+    time_str=format('%02d:%02d:%02d:%02d'%(day,hour,minutes,seconds))
+    return time_str
+
 # def bam_is_empty(fn):
 #     if os.path.getsize(fn) > 1000000:
 #         return False
@@ -83,6 +99,8 @@ python ninjaMap.py -bin contig_names_bin_map.txt -bam Bacteroides-sp-9-1-42FAA/B
 """)
 p.add_argument('-bam', dest='bamfile', action='store', type=str, required = True,
                 help='name sorted bam file.')
+p.add_argument('-fasta', dest='fastafile', action='store', type=str, required = True,
+                help='name sorted bam file.')
 p.add_argument('-bin', dest='binmap', action='store', type=str,
                 help='tab-delimited file with Col1= contig name and Col2=Bin/Strain name')
 p.add_argument('-out', dest='output', action='store', type=str,
@@ -93,14 +111,23 @@ p.add_argument('-stats', dest='statsfile', action='store', type=str,
                 help='read stats in tab delimited format')
 p.add_argument('-threads', dest='threads', action='store', type=str, default=1,
                 help='number of threads available for this job and subprocesses')
+p.add_argument('-debug', dest='debug', action='store_true', default=False,    
+                help='save intermediate false positives bam file')
+
 args = vars(p.parse_args())
 
 # DEBUG
 # bamfile_name = "/Users/sunit.jain/Research/SyntheticCommunities/ReadAlignment/Testing/Mismaps/Bacteroides-coprophilus-DSM-18228/Bacteroides-coprophilus-DSM-18228.processed.bam"
 # abundance_output_file = 'B_coprophilius.ninjaMap.v1.abundance.tsv'
 bamfile_name = args['bamfile']
+fastafile_name = args['fastafile']
 prefix = os.path.basename(bamfile_name).split('.')[0]
-vote_file = prefix +'.ninjaMap.votes.tsv'
+vote_file = prefix +'.ninjaMap.votes.tsv.gz'
+
+if args['debug']:
+    true_strain = prefix
+    tmp_bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
+    false_positives = pysam.AlignmentFile(prefix + '.ninjaMap.false_positives.bam', "wb", template=tmp_bamfile)
 
 if not args['binmap']:
     binmap_file = "/Users/sunit.jain/Research/SyntheticCommunities/ReadAlignment/Testing/Mismaps/contig_names_bin_map.txt"
@@ -154,19 +181,25 @@ logging.info('Processing the BAM file: %s ...', bamfile_name)
 
 total_reads = defaultdict(float)
 perfect_alignment = defaultdict(Counter)
+perfect_alignment_objects = defaultdict( list )
+
 best_aln_length = 0
 best_aln_score = 0
 num_perfect_alignments = 0
 # Read the BAM file
 bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
 for aln in bamfile.fetch(until_eof=True):
-    read_name = aln.qname
+    read_name = aln.query_name
     ref_name = aln.reference_name
     strain = bins[ref_name]
     edit_dist = dict(aln.tags)['NM']
-    align_len = aln.query_alignment_length
     query_len = aln.query_length
-    template_len = aln.template_length
+    ref_start = aln.reference_start
+    ref_end = aln.reference_end
+    align_len = aln.get_overlap(ref_start,ref_end)
+    # align_len = aln.query_alignment_length
+
+    # template_len = aln.template_length
 
     # Categorical Variables
     # is_proper_pair = aln.is_proper_pair
@@ -194,12 +227,22 @@ for aln in bamfile.fetch(until_eof=True):
     # if aln_score > best_aln_score:
     #     best_aln_score = aln_score
 
+    # if aln.is_read1:
+    #     read_name = read_name + '__1'
+    # else:
+    #     read_name = read_name + '__2'
+
     # https://www.biostars.org/p/106126/
     if (edit_dist == 0) and (align_len == query_len):
-        perfect_alignment[read_name][strain] += 1
+        perfect_alignment[read_name][strain].append(aln)
         num_perfect_alignments += 1
 
+        if args['debug'] and (not strain == true_strain) and (not perfect_alignment_objects[read_name]):
+            perfect_alignment_objects[read_name].append(aln)
+
     total_reads[read_name] += 1
+
+bamfile.close()
 
 Total_Reads_Aligned = len(total_reads.keys())
 Total_Perfect_Alignments = len(perfect_alignment.keys())
@@ -219,6 +262,7 @@ primary_strain_weights = defaultdict(float)
 primary_reads_considered = defaultdict(float)
 escrow = defaultdict(Counter)
 read_vote_contribution = defaultdict(Counter)
+
 for read in perfect_alignment.keys():
     read_vote_value = 0
     if len(perfect_alignment[read].keys()) == 1:
@@ -226,14 +270,23 @@ for read in perfect_alignment.keys():
         # True hit. This read gets 1 whole vote to assign to a Strain.
         primary_reads_considered[read] += 1
         read_vote_value = 1
-        strain = list(perfect_alignment[read].keys())[0]
+        strain = list(perfect_alignment[read].keys())[0] # basically the only one.
         strain_primary_abundance[strain] += read_vote_value
         read_vote_contribution[read][strain] += read_vote_value
+
+        if args['debug'] and not strain == true_strain:
+            aln_obj = perfect_alignment_objects[read][0]
+
+            # Create Bam file
+            false_positives.write(aln_obj)
     else:
-        # This read was able to align at multiple places without any issues.
+        # This read was able to align to multiple strains without any issues.
         # Add it to the escrow dict
         for strain in perfect_alignment[read].keys():
             escrow[read][strain] += 1
+
+tmp_bamfile.close()
+false_positives.close()
 
 Total_Primary_Reads = len(primary_reads_considered.keys())
 logging.info('\tUsed %d reads for primary distribution, out of %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total.', 
@@ -244,11 +297,6 @@ logging.info('\tUsed %d reads for primary distribution, out of %d (%7.3f%%) read
     )
 
 logging.info('Calculating strain abundance distribution based on Primary alignments ...')
-# primary strain weights
-# for strain, primary_vote in strain_primary_abundance.items():
-    # primary_strain_weights[strain] = primary_vote/Total_Reads_Aligned  
-# sorted(primary_strain_weights.items(), key=lambda k_v: k_v[1][2], reverse=True)
-
 ###############################################################################
 # Use the strain abundance distribution based on primary alignments to weight
 # the Escrow abundance assignments.
@@ -275,10 +323,6 @@ for read in escrow.keys():
             strain_escrow_abundance[strain] += read_vote_value
             read_vote_contribution[read][strain] += read_vote_value
 
-# for strain, escrow_vote in strain_escrow_abundance.items():
-#     # escrow_strain_weights[strain] = escrow_vote/Total_Reads_Aligned
-#     escrow_strain_weights[strain] = escrow_vote
-
 Total_Escrow_Reads = len(escrow_reads_considered.keys())
 logging.info('\tUsed %d reads for escrow distribution, out of %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total.', 
     Total_Escrow_Reads,
@@ -290,22 +334,82 @@ logging.info('\tUsed %d reads for escrow distribution, out of %d (%7.3f%%) reads
 ###############################################################################
 # Check: did any read contribute more than 1 vote?
 ###############################################################################
-# votes = open(vote_file, 'w')
+votes = gzip.open(vote_file, 'wt')
 
-# # Header
-# votes.write("Read_Name")
-# for strain in strains_list:
-#     votes.write('\t'+strain)
-# votes.write('\n')
+# Header
+line = "Read_Name"
+for strain in strains_list:
+    line += '\t' + strain
 
-# # Votes
-# for read in read_vote_contribution.keys():
-#     votes.write(read)
-#     for strain in strains_list:
-#         votes.write('\t' +
-#             str(read_vote_contribution[read][strain]))
-#     votes.write('\n')
-# votes.close()
+votes.write(line + '\n')
+
+# Votes
+line = ''
+for read in read_vote_contribution.keys():
+    line = read
+    for strain in strains_list:
+        if read_vote_contribution[read][strain]:
+            vote = read_vote_contribution[read][strain]
+        else:
+            vote=0
+        line += '\t' + str(vote)
+    votes.write(line + '\n')
+    line=''
+
+votes.close()
+
+###############################################################################
+# Compute contig coverage
+###############################################################################
+logging.info('Computing depth and coverage for each strain in the database ...')
+cov_bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
+fasta = pysam.FastaFile(fastafile_name)
+
+bin_meta = defaultdict( lambda: defaultdict(lambda: defaultdict( int )))
+for contig_name in bins.keys():
+    strain = bins[contig_name]
+    for pile in cov_bamfile.pileup(contig = contig_name, stepper = 'all'):
+        # Only calculate coverage from reads with perfect alignment.
+        # print(":")
+        base_cov_contribution = 0
+        for read in pile.get_query_names():
+            if read_vote_contribution[read]:
+                base_cov_contribution += read_vote_contribution[read][strain]
+
+        if base_cov_contribution > 0:
+            bin_meta[strain][contig_name]['covered'] += 1
+            bin_meta[strain][contig_name]['depth'] += base_cov_contribution
+    
+    if not bin_meta[strain][contig_name]['covered']:
+        bin_meta[strain][contig_name]['covered'] = 0
+        bin_meta[strain][contig_name]['depth'] = 0
+
+        
+cov_bamfile.close()
+
+coverage = defaultdict( lambda: defaultdict( int ))
+for strain in bin_meta.keys():
+    genome_size = genome_cover = wt_depth = num_contigs = 0
+    
+    for contig_name in bin_meta[strain].keys():
+        genome_cover += bin_meta[strain][contig_name]['covered']
+        genome_size += fasta.get_reference_length(contig_name)
+        num_contigs += 1
+        if bin_meta[strain][contig_name]['covered'] > 0:
+            wt_depth += (bin_meta[strain][contig_name]['depth'] * bin_meta[strain][contig_name]['covered']) / fasta.get_reference_length(contig_name)
+        else:
+            wt_depth += 0
+
+    coverage[strain]['depth'] = wt_depth/genome_size
+    coverage[strain]['percent_cov'] = genome_cover*100/genome_size
+
+    if coverage[strain]['depth'] > 0:
+        logging.info('\tCovered %7.3f%% of %s @ a depth of %7.3f from %d contig(s)',
+                    coverage[strain]['percent_cov'],
+                    strain,
+                    coverage[strain]['depth'],
+                    num_contigs)
+    
 ###############################################################################
 # Aggregate abundance from the Primary and weighted Escrow alignments
 # Write to output file
@@ -314,12 +418,14 @@ logging.info('Writing abundance counts to: %s ...', abundance_output_file)
 
 abund = open(abundance_output_file, 'w')
 # Header
-abund.write('Strain_Name\tAbundance\n')
+abund.write('Strain_Name\tAbundance\tWeighted_Depth\tPercent_Covered\n')
 for strain in strains_list:
     abundance = (strain_primary_abundance[strain] + strain_escrow_abundance[strain])*100/Total_Reads_Aligned
-    abund.write(strain +'\t'+
-        # str(round(abundance, 5)) +'\n')
-        str(abundance) +'\n')
+    # cover = coverage[strain]
+    abund.write(strain +'\t'+ 
+                str(abundance) +'\t'+ 
+                str(coverage[strain]['depth']) +'\t'+ 
+                str(coverage[strain]['percent_cov']) +'\n')
 abund.close()
 
 stats = open(stats_file, 'w')
@@ -333,4 +439,5 @@ stats.write(
     str(Total_Escrow_Reads) +'\n')
 stats.close()
 
-logging.info('Completed')
+end = timer()
+logging.info('Completed in %s (d:h:m:s)', human_time(end - start))

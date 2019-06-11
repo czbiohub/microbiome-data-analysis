@@ -12,13 +12,17 @@ truthLabel = os.path.basename(bamfile_name).split('.')[0]
 
 # f = open(output_name, 'w')
 f = gzip.open(output_name+".gz", 'wt')
-f.write('qname,reference_name,align_len,query_len,template_len,aln_cov,quality,edit_dist,perc_id,aln_score,mate_score,mismatches,gap_open,gap_ext,is_truth\n')
+f.write('qname,reference_contig_name,reference_name,reference_start,reference_end,align_len,query_len,template_len,aln_cov,quality,edit_dist,perc_id,aln_score,mate_score,mismatches,gap_open,gap_ext,is_truth\n')
 
 bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
 for aln in bamfile.fetch(until_eof=True):
     if aln.is_paired and aln.is_proper_pair and not aln.is_secondary:
+        read_name = aln.query_name
+        ref_contig_name = aln.reference_name
         ref_name = aln.reference_name.split('_')[0]
-        align_len = aln.query_alignment_length
+        ref_start = aln.reference_start
+        ref_end = aln.reference_end
+        align_len = aln.get_overlap(ref_start,ref_end)
         query_len = aln.query_length
         template_len = aln.template_length
         aln_cov = align_len/float(query_len)
@@ -30,11 +34,20 @@ for aln in bamfile.fetch(until_eof=True):
         mismatches = dict(aln.tags)['XM']
         gap_open = dict(aln.tags)['XO']
         gap_ext = dict(aln.tags)['XG']
-        is_truth = (ref_name == truthLabel) 
+        is_truth = (ref_name == truthLabel)
+        
+        if aln.is_read1:
+            read_name = read_name + '__1'
+        else:
+            read_name = read_name + '__2'
+        
         # perfect alignment over the greatest distance.
         f.write(
-            str(aln.qname)+','+
+            str(read_name)+','+
+            str(ref_contig_name)+','+
             str(ref_name)+','+
+            str(ref_start) + ',' +
+            str(ref_end) + ',' +
             str(align_len)+','+
             str(query_len)+','+
             str(template_len)+','+
