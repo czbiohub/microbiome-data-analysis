@@ -165,14 +165,13 @@ samtools index -@ ${coreNum} ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam
 #   supplementary alignment (0x800)
 # samtools view -F 3328 -q 10 Dorea-longicatena-DSM-13814.processed.bam | cut -f1 | sort | uniq | wc -l
 
-python ${scriptFolder}/ninjaMap.py \
+python ${scriptFolder}/ninjaMap3.py \
     -bam ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam \
     -bin ${referenceNameFile} \
-    -out ${NINJA_OUTPUT}/${OUTPUT_PREFIX}.abundance.tsv \
-    -stats ${NINJA_OUTPUT}/${OUTPUT_PREFIX}.stats.tsv \
-    -log ${LOG_DIR}/${SAMPLE_NAME}.ninjaMap.log.txt
-
-cat ${LOG_DIR}/${SAMPLE_NAME}.ninjaMap.log.txt
+    -fasta ${DBNAME}.fasta \
+    -outdir ${NINJA_OUTPUT} \
+    -prefix ${SAMPLE_NAME} |\
+    tee -a ${LOG_DIR}/${SAMPLE_NAME}.ninjaMap.log.txt
 
 # Tabulate read count
 totalReads=$(( $( zcat ${RAW_FASTQ}/read1.fastq.gz | wc -l ) / 4 ))

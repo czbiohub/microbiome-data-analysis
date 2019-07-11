@@ -38,7 +38,7 @@ p.add_argument(dest='seedfile', action='store', type=str)
 p.add_argument(dest='s3output_root', type=str) # include s3://...
 p.add_argument(dest='output_command', action='store', type=str)
 p.add_argument('-i', '--image', dest='image', action='store', type=str, default='sunitjain/ninjamap:latest')
-p.add_argument('-m', '--memory', dest='memory', action='store', type=int, default=64000)
+p.add_argument('-m', '--memory', dest='memory', action='store', type=int, default=128000)
 p.add_argument('-c', '--core', dest='vcpus', action='store', type=int, default=16)
 p.add_argument('-s', '--storage', dest='storage', action='store', type=int, default=500) # the minimum for AWS is 500
 p.add_argument('-q', '--queue', dest='queue', action='store', type=str, default='microbiome-highPriority')
@@ -91,4 +91,3 @@ with open(arguments.output_command, 'w') as command_file:
             sample_specific_file_names = 'export fastq1='+run_samples.loc[sample,'fastq1']+'; export fastq2='+run_samples.loc[sample,'fastq2']+'; export S3OUTPUTPATH='+arguments.s3output_root+'/'+sample+';'
             t = command_file.write(base_string+command_string1+sample_specific_file_names+command_string2)
             command_file.write('\n')
-
