@@ -175,6 +175,7 @@ class Strains:
         self.cum_escrow_votes = 0
         
         self.total_covered_bases = 0
+        self.total_covered_depth = 0
         self.uniquely_covered_bases = 0
         self.uniquely_covered_depth = 0
         self.adj_primary_wt = 0
@@ -290,6 +291,7 @@ class Strains:
             if read_unique_name in bin_dict.keys():
                 # Only calculate coverage from reads with perfect alignment(singular or escrow).
                 wt_base_depth += bin_dict[read_unique_name]
+                self.total_covered_depth += 1
 
         return wt_base_depth
     
@@ -341,6 +343,8 @@ class Strains:
             index = [self.name],
             data  = {
                 'Genome_Size' : self.genome_size,
+                'Total_Bases_Covered' : self.total_covered_bases,
+                'Coverage_Depth' : self.total_covered_depth/self.genome_size,
                 'Read_Fraction' : read_fraction,
                 'Lib_Norm_Abundance' : self.aln_norm_abundance,
                 'Genome_Size_Lib_Norm_Abundance' : self.genome_norm_abundance,
@@ -373,7 +377,7 @@ class Strains:
             return None
 
         percent_coverage = self.total_covered_bases * 100 / self.genome_size
-        # coverage_depth = (self.uniquely_covered_depth + self.escrow_covered_depth) / self.genome_size
+        coverage_depth = self.total_covered_depth/self.genome_size
         
         # per_base_singular_depth = self.uniquely_covered_depth / self.uniquely_covered_bases
         # per_base_escrow_depth = self.escrow_covered_depth / self.escrow_covered_bases
@@ -390,7 +394,7 @@ class Strains:
                     data  = {
                         'Read_Fraction' : read_fraction,
                         'Percent_Coverage' : percent_coverage,
-                        # 'Coverage_Depth' : coverage_depth,
+                        'Coverage_Depth' : coverage_depth,
                         'Weighted_Coverage_Depth' : wt_coverage_depth
                         }
                     )
