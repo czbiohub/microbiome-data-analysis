@@ -33,6 +33,9 @@ def human_time(time):
     time_str = format('%02d:%02d:%02d:%02d'%(day,hour,minutes,seconds))
     return time_str
 
+def intersection(list1, list2):
+    return list(set(list1) & set(list2))
+
 # def bam_is_empty(fn):
 #     if os.path.getsize(fn) > 1000000:
 #         return False
@@ -132,7 +135,7 @@ if not args['prefix']:
     default_prefix = os.path.basename(bamfile_name).split('.')[0]
     prefix = os.path.join(output_dir, default_prefix)
 else:
-    prefix = prefix = os.path.join(output_dir, args['prefix'])
+    prefix = os.path.join(output_dir, args['prefix'])
 
 abundance_output_file = prefix +'.ninjaMap.abundance.csv'
 stats_file = prefix +'.ninjaMap.stats.csv'
@@ -173,6 +176,7 @@ class Strains:
         self.genome_size = 0
         self.cum_primary_votes = 0
         self.cum_escrow_votes = 0
+        self.uniqueness_score = 0
         
         self.total_covered_bases = 0
         self.total_covered_depth = 0
@@ -252,12 +256,13 @@ class Strains:
                         self.uniquely_covered_bases += 1
                         self._add_covered_base(contig_name, pileupcolumn.reference_pos)
                         self.uniquely_covered_depth += base_cov_contribution
+                        self.total_covered_depth += 1
         cov_bamfile.close()
         fasta.close()
         
         return
     
-    def calculate_escrow_coverage (self,bamfile_name, fasta_file):
+    def calculate_escrow_coverage (self, bamfile_name, fasta_file):
         if self.num_escrow_reads == 0:
             return
         
@@ -275,8 +280,9 @@ class Strains:
                     if base_cov_contribution > 0:
                         self.escrow_covered_bases += 1
                         self._add_covered_base(contig_name, pileupcolumn.reference_pos)
-                        self.escrow_covered_depth += base_cov_contribution
-                    
+                        # self.escrow_covered_depth += base_cov_contribution
+                        # self.total_covered_depth += 1
+
         cov_bamfile.close()
         return
 
@@ -291,7 +297,6 @@ class Strains:
             if read_unique_name in bin_dict.keys():
                 # Only calculate coverage from reads with perfect alignment(singular or escrow).
                 wt_base_depth += bin_dict[read_unique_name]
-                self.total_covered_depth += 1
 
         return wt_base_depth
     
@@ -317,8 +322,6 @@ class Strains:
         self.aln_norm_abundance = self.adjusted_votes / Reads.reads_w_perfect_alignments
         self.genome_norm_abundance = (self.aln_norm_abundance * self.total_covered_bases) / self.genome_size
 
-            
-    
     def compile_general_stats(self):
         '''
         for each object of this class, return a pandas data frame with 
@@ -329,6 +332,7 @@ class Strains:
         
         singular_depth = 0
         escrow_depth = 0
+        # self.total_covered_bases = len(self.covered_bases)
         self._normalize_votes()
         
         if self.uniquely_covered_bases > 0:
@@ -337,7 +341,7 @@ class Strains:
         if self.escrow_covered_bases > 0:
             escrow_depth = (self.escrow_covered_depth/self.escrow_covered_bases) * self.genome_size
         
-        read_fraction = (self.cum_escrow_votes+self.cum_primary_votes)*100/Reads.total_reads_aligned
+        read_fraction = self.read_fraction
         # Dataframe
         return pd.DataFrame(
             index = [self.name],
@@ -346,9 +350,6 @@ class Strains:
                 'Total_Bases_Covered' : self.total_covered_bases,
                 'Coverage_Depth' : self.total_covered_depth/self.genome_size,
                 'Read_Fraction' : read_fraction,
-                'Lib_Norm_Abundance' : self.aln_norm_abundance,
-                'Genome_Size_Lib_Norm_Abundance' : self.genome_norm_abundance,
-                'Adjusted_Votes' : self.adjusted_votes,
                 'Singular_Strain_Weight' : self.adj_primary_wt,
                 'Total_Singular_Reads' : self.num_singular_reads,
                 'Total_Singular_Votes' : self.cum_primary_votes,
@@ -371,7 +372,7 @@ class Strains:
                     relative_abundance, percent_coverage, wt_coverage_depth
         strain_name
         '''
-        read_fraction = (self.cum_escrow_votes+self.cum_primary_votes)*100/Reads.total_reads_aligned
+        read_fraction = self.read_fraction
 
         if read_fraction == 0:
             return None
@@ -384,7 +385,9 @@ class Strains:
 
         wt_coverage_depth = 0
         if (self.uniquely_covered_bases + self.escrow_covered_bases) > 0:
-            wt_coverage_depth = (((self.uniquely_covered_depth * self.uniquely_covered_bases) + (self.escrow_covered_depth * self.escrow_covered_bases))/(self.uniquely_covered_bases + self.escrow_covered_bases))/self.genome_size
+            unique_depth_per_base = self.uniquely_covered_depth / self.uniquely_covered_bases
+            escrow_depth_per_base = self.escrow_covered_depth / self.escrow_covered_bases
+            wt_coverage_depth = (unique_depth_per_base + escrow_depth_per_base)
             # wt_coverage_depth = (per_base_singular_depth + per_base_escrow_depth) * self.total_covered_bases / self.genome_size
         # 'Lib_Norm_Abundance' : 100*self.aln_norm_abundance,
         # 'Genome_Size_Lib_Norm_Abundance' : 100*self.genome_norm_abundance,
@@ -399,8 +402,35 @@ class Strains:
                         }
                     )
     
-    def mike_drop(self):
-        return self.uniquely_covered_bases / self.genome_size
+    def calculate_adj_primary_wt_uniqueness_score(self):
+        # Sunit's interpretation of Mike drop adjustment
+        self.adj_primary_wt = (1 - self.uniqueness_score) * self.cum_primary_votes / Reads.total_reads_aligned
+        return self.adj_primary_wt
+
+    def calculate_andres_adjustment(self):
+        # Andres's interpretation of Mike drop adjustment.
+        # Actually in his interpretation, 'unique # bases' needed to be calculated for all the strains
+        # a read is assigned to => Size of unique region in a genome compared to other genomes that this read maps.
+        # This is a VERY costly operation to repeat millions of times, since it cannot be pre-calculated.
+        # I have adjusted it to use the genome's absolute unique region compared to all genomes in the database.
+        self.adj_primary_wt = self.cum_primary_votes / self.indexed_uniquely_covered_bases
+        return self.adj_primary_wt
+
+    def calculate_sunits_original_adjustment(self):
+        self.adj_primary_wt = self.cum_primary_votes / Reads.total_reads_aligned
+        return self.adj_primary_wt
+    
+    def calculate_sunits_simplified_adjustment(self):
+        self.adj_primary_wt = self.cum_primary_votes / self.uniquely_covered_bases
+        return self.adj_primary_wt
+
+    def calculate_mike_drop_penalty(self):
+        self.uniqueness_score = self.indexed_uniquely_covered_bases / Strains.total_indexed_uniquely_covered_bases
+        return self.uniqueness_score
+
+    def calculate_read_fraction(self):
+        self.read_fraction = (self.cum_escrow_votes + self.cum_primary_votes) * 100 / Reads.total_reads_aligned
+        return self.read_fraction
 
 class Reads:
     total_reads_aligned = 0
@@ -411,15 +441,16 @@ class Reads:
     total_escrow_reads = 0
     total_singular_reads_in_pairs = 0
 
-    def __init__(self, name):
+    def __init__(self, name, mate_name, read_length, template_length):
         self.name = name
         self.unique_name = name
-        self.has_voted = False
-        self.cum_vote = 0
+        self.mates_unique_name = mate_name
+        self.read_length = read_length
+        self.template_length = template_length
 
+        self.cum_vote = 0
+        self.has_voted = False
         self.in_singular_bin = False
-        
-        self.mates_unique_name = ''
         self.mate_has_perfect_match = False
 
         self.mapped_strains = defaultdict()
@@ -443,6 +474,7 @@ class Reads:
         mate.in_singular_bin = True
 
     def add_vote(self, vote_value):
+        # vote_value = round(vote_value, 7)
         self.cum_vote += vote_value
         self.has_voted = True
 
@@ -450,14 +482,23 @@ class Reads:
         '''
         for each object of this class, return True if cumulative votes > 1
         '''
-        return (round(self.cum_vote, 5) > 1)
+        fraud = True
+        # not approx 1
+        if (self.cum_vote < 1.001) and (self.cum_vote > 0.999):
+            fraud = False
 
-    def get_voting_details(self):
+        # approx 0
+        if (self.cum_vote < 0.001):
+            fraud = False
+
+        return fraud
+
+    def get_voting_details(self, approved_strain_list):
         '''
         returns a list of 3 element lists, each containing: strain_name, singular vote value and escrow vote value
         '''
         vote_list = list()
-        for strain in self.mapped_strains.keys():
+        for strain in approved_strain_list:
             strain_name = ''
             escrow_votes = 0
             singular_votes = 0
@@ -480,28 +521,35 @@ class Reads:
     
     @staticmethod
     def choose_primary_candidate(read, mate):
+        if (read.template_length == 0) or (mate.template_length == 0):
+            return None
+
         if read.mate_has_perfect_match or mate.mate_has_perfect_match :
-            read_vote_value = 0
-            if read.in_singular_bin and mate.in_singular_bin:
-                # they both match a single strain
-                read_strain = list(read.mapped_strains.keys())[0] # basically the only one.
-                mate_strain = list(mate.mapped_strains.keys())[0] # basically the only one.
-                if read_strain.name == mate_strain.name:
-                    # the strains are the same
-                    return read_strain.name
-            elif read.in_singular_bin and not mate.in_singular_bin:
-                # R1 matches a single strain, but R2 matches multiple
-                read_strain = list(read.mapped_strains.keys())[0] # basically the only one.
-                if read_strain.name in mate.mapped_strains.values():
-                    # If there is an overlap between strain matches, R1 recruits R2 for it's strain match
-                    return read_strain.name
-            elif mate.in_singular_bin and not read.in_singular_bin:
-                # R2 matches a single strain, but R1 matches multiple
-                mate_strain = list(mate.mapped_strains.keys())[0] # basically the only one.
-                if mate_strain.name in read.mapped_strains.values():
-                    # If there is an overlap between strain matches, R2 recruits R1 for it's strain match
-                    return mate_strain.name
-        return None
+            common_strains_list = intersection(read.mapped_strains.keys(), mate.mapped_strains.keys())
+            if len(common_strains_list) == 1:
+                return common_strains_list[0].name
+            else:
+                return None
+        #     if read.in_singular_bin and mate.in_singular_bin:
+        #         # they both match a single strain
+        #         read_strain = list(read.mapped_strains.keys())[0] # basically the only one.
+        #         mate_strain = list(mate.mapped_strains.keys())[0] # basically the only one.
+        #         if read_strain.name == mate_strain.name:
+        #             # the strains are the same
+        #             return read_strain.name
+        #     elif read.in_singular_bin and not mate.in_singular_bin:
+        #         # R1 matches a single strain, but R2 matches multiple
+        #         read_strain = list(read.mapped_strains.keys())[0] # basically the only one.
+        #         if read_strain.name in mate.mapped_strains.values():
+        #             # If there is an overlap between strain matches, R1 recruits R2 for it's strain match
+        #             return read_strain.name
+        #     elif mate.in_singular_bin and not read.in_singular_bin:
+        #         # R2 matches a single strain, but R1 matches multiple
+        #         mate_strain = list(mate.mapped_strains.keys())[0] # basically the only one.
+        #         if mate_strain.name in read.mapped_strains.values():
+        #             # If there is an overlap between strain matches, R2 recruits R1 for it's strain match
+        #             return mate_strain.name
+        # return None
 
     @staticmethod
     def is_perfect_alignment(aln):
@@ -547,18 +595,42 @@ class Reads:
             orientation =  'fwd'
             
         return Reads.parse_read_name(aln) +'__'+ orientation
+    
+    @staticmethod
+    def extract_read_info(aln):
+        read_name = Reads.get_unique_read_name(aln)
+        mate_name = Reads.get_unique_mate_name(aln)
+        read_length = aln.reference_length
+        template_length = aln.template_length
+
+        return (read_name, mate_name, read_length, template_length)
+    
+    @staticmethod
+    def check_for_fraud(votes_file, discard_pile=1):
+        fraud_status = True
+        df = pd.read_csv(votes_file, index_col='Read_Name', usecols=['Read_Name', 'cSingular_Vote', 'cEscrow_Vote'])
+        df['Total_Votes'] = round((df['cSingular_Vote'] + df['cEscrow_Vote']), 5)
+        df = df.drop(['cSingular_Vote',  'cEscrow_Vote'], axis = 1)
+        votes_df = df.groupby('Read_Name').sum()
+        gt_row, gt_col = votes_df[(votes_df.Total_Votes > 1.001)].shape
+        mid_row, mid_col = votes_df[(votes_df.Total_Votes > 0.001) & (votes_df.Total_Votes < 0.999)].shape
+        if gt_row == 0 and mid_row == 0:
+            fraud_status = False
+
+        return fraud_status
 
 ###############################################################################
 # Parse the Contig to Bin/Strain name map file.
 ###############################################################################
 
 logging.info('Processing the Bin Map file: %s ...', binmap_file)
-
+# Header = ('Strain_Name,Strain_Weight,Contig_Name,Contig_Length\n')
 all_strains = defaultdict(list)
 with open(binmap_file, "r") as binmap:
     for line in binmap:
         line=line.rstrip()
         contig_name, strain_name = line.split('\t')
+        # all_strains[strain_name].append(line)
         all_strains[strain_name].append(contig_name)
 
 all_strain_obj = defaultdict(int)
@@ -569,6 +641,8 @@ for strain_name in strains_list:
     strain = Strains(strain_name)
     all_strain_obj[strain_name] = strain
     for contig_name in all_strains[strain_name]:
+    # for line in all_strains[strain_name]:
+        # binmap_strain_name, strain.uniqueness_score, contig_name, contig_length = line.split('\t')
         strain.add_contig(contig_name, fasta.get_reference_length(contig_name))
         bins[contig_name] = strain_name
         Strains.total_genome_size += fasta.get_reference_length(contig_name)
@@ -576,6 +650,7 @@ for strain_name in strains_list:
 logging.info('\t%d contigs assigned to %d strains', len(bins.keys()), len(all_strains.keys()))
 fasta.close()
 
+del all_strains
 ###############################################################################
 # Parse the BAM file
 ###############################################################################
@@ -586,18 +661,18 @@ if args['debug']:
     perfect_alignment = defaultdict(lambda: defaultdict(list))
 else:
     perfect_alignment = defaultdict(lambda: defaultdict(int))
-mate_map = defaultdict()
+read_info = defaultdict()
 
 # Read the BAM file
 bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
 for aln in bamfile.fetch(until_eof=True):
-    read_name = Reads.get_unique_read_name(aln)
-    mates_name = Reads.get_unique_mate_name(aln)
-    mate_map[read_name] = mates_name
+    # read_name = Reads.get_unique_read_name(aln)
+    # mates_name = Reads.get_unique_mate_name(aln)
+    read_name, mates_name, read_length, template_length = Reads.extract_read_info(aln)
+    read_info[read_name] = (mates_name, read_length, template_length)
 
     if Reads.is_perfect_alignment(aln):
-        strain_name = bins[aln.reference_name] # [contig_name]
-
+        strain_name = bins[aln.reference_name] # bins[contig_name] --> strain name
         if args['debug']:
             perfect_alignment[read_name][strain_name].append(aln)
         else:
@@ -614,7 +689,7 @@ logging.info('\tUsed %d reads with perfect alignments, out of %d (%7.3f%%).',
     Reads.total_reads_aligned,
     Reads.reads_w_perfect_alignments*100/Reads.total_reads_aligned
     )
-
+del total_reads
 ###############################################################################
 # Separate the Primary from the Escrow alignments
 # Calculate the Strain abundance distribution based on the primary alignments.
@@ -622,11 +697,10 @@ logging.info('\tUsed %d reads with perfect alignments, out of %d (%7.3f%%).',
 read_objects = defaultdict()
 logging.info('Separating the Primary from the Escrow alignments ...')
 for read_name in perfect_alignment.keys():
-    read = Reads(read_name)
+    mate_name, read_length, template_length = read_info[read_name]
+    read = Reads(read_name, mate_name, read_length, template_length)
     read_objects[read_name] = read
-    
-    mate_name = mate_map[read_name]
-    read.mates_unique_name = mate_name
+
     if mate_name in perfect_alignment.keys():
         # This means the mate had a perfect match too.
         read.mate_has_perfect_match = True
@@ -657,7 +731,7 @@ if args['debug']:
     true_positives.close()
 
 del perfect_alignment
-del mate_map
+del read_info
 
 logging.info('\tUsed %d reads for primary distribution, out of %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total.', 
     Reads.total_singular_reads,
@@ -673,12 +747,15 @@ if len(read_objects.keys()) != Reads.reads_w_perfect_alignments:
     )    
     sys.exit()
 
+###############################################################################
+# Processing the reads that mapped exclusively to a single strain
+###############################################################################
 votes = gzip.open(vote_file, 'wt')
 # Header
-votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,cumulative_votes,was_discarded,is_primary,is_singular\n")
-
-singular_fraud_alert = False
+votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
 escrow_read_objects = defaultdict()
+singular_fraud_alert = False
+num_singular_fraud_reads = 0
 for name, read in read_objects.items():
     if read.has_voted:
         continue
@@ -694,14 +771,19 @@ for name, read in read_objects.items():
             strain.add_paired_singular_vote(read.unique_name, mate.unique_name, 1)
             read.add_vote(1)
             mate.add_vote(1)
+
             Reads.total_singular_reads_in_pairs += 2
+
+            strain.uniquely_covered_depth += read.template_length
+            strain.total_covered_depth += read.template_length
+
             votes.write(read.name + ',' + strain.name + ',' + str(strain.singular_bin[read.unique_name]) + ',' + 
-                str(strain.escrow_bin[read.unique_name]) + ',' + str(read.cum_vote) + ',False,'+ 
-                str(read.has_voted)+','+str(read.in_singular_bin)+'\n')
+                str(strain.escrow_bin[read.unique_name]) + ',' + 'False,'+ 
+                str(read.has_voted)+','+str(read.in_singular_bin)+','+str(read.mate_has_perfect_match)+'\n')
             
             votes.write(mate.name + ',' + strain.name + ',' + str(strain.singular_bin[mate.unique_name]) + ',' + 
-                str(strain.escrow_bin[mate.unique_name]) + ',' + str(mate.cum_vote) + ',False,'+ 
-                str(mate.has_voted)+','+str(mate.in_singular_bin)+'\n')
+                str(strain.escrow_bin[mate.unique_name]) + ',' + 'False,'+ 
+                str(mate.has_voted)+','+str(mate.in_singular_bin)+','+str(read.mate_has_perfect_match)+'\n')
         else:
             escrow_read_objects[name] = read
     else:
@@ -710,22 +792,25 @@ for name, read in read_objects.items():
     if read.is_fraud():
         singular_fraud_alert = True
         num_singular_fraud_reads += 1
-    
-logging.info('\t%d reads in pairs will be used for singular alignment strain abundance, and %d for escrow alignment strain abundance from %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total.', 
-    Reads.total_singular_reads_in_pairs,
-    len(escrow_read_objects.keys()),
-    Reads.total_singular_reads,
-    Reads.total_singular_reads*100/Reads.reads_w_perfect_alignments,
-    Reads.total_singular_reads*100/Reads.total_reads_aligned
-    )
 
-if len(read_objects.keys()) != (len(escrow_read_objects.keys()) + Reads.total_singular_reads_in_pairs):
-    logging.critical('Read %d read objects with perfect alignments, but created %d read objects as singular and escrow total (%d + %d). There is something fishy going on here...',
-    len(read_objects.keys()),
-    (len(escrow_read_objects.keys()) + Reads.total_singular_reads_in_pairs),
+Reads.total_escrow_reads = len(escrow_read_objects.keys())
+logging.info('\t%d reads will be used for singular alignment strain abundance out of %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total aligned.',
     Reads.total_singular_reads_in_pairs,
-    len(escrow_read_objects.keys())
-    )    
+    Reads.reads_w_perfect_alignments,
+    Reads.total_singular_reads_in_pairs*100/Reads.reads_w_perfect_alignments,
+    Reads.total_singular_reads_in_pairs*100/Reads.total_reads_aligned)
+logging.info('\t%d reads for escrow alignment strain abundance out of %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total aligned.',
+    Reads.total_escrow_reads,
+    Reads.reads_w_perfect_alignments,
+    Reads.total_escrow_reads * 100 / Reads.reads_w_perfect_alignments,
+    Reads.total_escrow_reads * 100 / Reads.total_reads_aligned)
+
+if Reads.reads_w_perfect_alignments != (Reads.total_escrow_reads + Reads.total_singular_reads_in_pairs):
+    logging.critical('Read %d read objects with perfect alignments, but created %d read objects as singular and escrow total (%d + %d). There is something fishy going on here...',
+    Reads.reads_w_perfect_alignments,
+    (Reads.total_escrow_reads + Reads.total_singular_reads_in_pairs),
+    Reads.total_singular_reads_in_pairs,
+    Reads.total_escrow_reads)
     sys.exit()
 
 del read_objects
@@ -751,17 +836,32 @@ for name, read in escrow_read_objects.items():
     read_vote_value = 0
     total_primary_wts = 0
     to_discard = False
+    common_strains_list = list()
+
+    # If both reads in a pair have perfect alignments,
+    # shortlist the escrow vote spread to the intersection of 
+    # the list of strains that each pair aligns to.
+    if read.mates_unique_name in escrow_read_objects.keys():
+        mate = escrow_read_objects[read.mates_unique_name]
+        common_strains_list = intersection(read.mapped_strains.keys(), mate.mapped_strains.keys())
+        if len(common_strains_list) == 0:
+            common_strains_list = read.mapped_strains.keys()
+    else:
+        common_strains_list = read.mapped_strains.keys()
 
     if not read.has_voted:
         # Allow voting ONLY if the read it hasn't voted already
         # discard = read.calculate_escrow_abundance()
-        for strain in read.mapped_strains.keys():
+        # for strain in read.mapped_strains.keys():
+
+        for strain in common_strains_list:
             # Normalize by strain weights based on singular alignments
-            if strain.uniquely_covered_bases > 0:
+            # if strain.uniquely_covered_bases > 0:
                 # The 'Mike adjustment' or The 'Mike drop'
-                # strain.adj_primary_wt = strain.uniquely_covered_depth / strain.uniquely_covered_bases
-                strain.adj_primary_wt = strain.mike_drop()
-                total_primary_wts += strain.adj_primary_wt
+                # total_primary_wts += strain.calculate_adj_primary_wt_uniqueness_score() # (1 - uniquness_score) * self.cum_primary_votes / Reads.total_reads_aligned
+                # total_primary_wts += strain.calculate_andres_adjustment()
+                # total_primary_wts += strain.calculate_sunits_simplified_adjustment()
+            total_primary_wts += strain.calculate_sunits_original_adjustment() # self.cum_primary_votes / Reads.total_reads_aligned
 
         if total_primary_wts > 0:
             Reads.total_escrow_reads_kept += 1
@@ -770,15 +870,20 @@ for name, read in escrow_read_objects.items():
                 read_vote_value = 1 * strain.adj_primary_wt / total_primary_wts
                 strain.add_escrow_vote(read.unique_name, read_vote_value)
                 read.add_vote(read_vote_value)
+                strain.escrow_covered_depth += read.read_length
+                strain.total_covered_depth += read.read_length
         else:
+            # not enough primary votes
             Reads.total_escrow_reads_discarded += 1
             to_discard = True
 
         # return to_discard
-    voting_details = read.get_voting_details()
+    voting_details = read.get_voting_details(common_strains_list)
     for voting_detail_sublist in voting_details:
         strain_name, singular_vote_count, escrow_vote_count, cumulative_vote = voting_detail_sublist
-        votes.write(read.name + ',' + strain_name + ',' + str(singular_vote_count) + ',' + str(escrow_vote_count) + ',' + str(cumulative_vote) + ',' + str(to_discard) +','+ str(read.has_voted)+','+str(read.in_singular_bin)+'\n')
+        votes.write(read.name + ',' + strain_name + ',' + str(singular_vote_count) + ',' + 
+                    str(escrow_vote_count) + ',' + str(to_discard) +','+ 
+                    str(read.has_voted)+','+str(read.in_singular_bin)+','+ str(read.mate_has_perfect_match)+'\n')
         if read.is_fraud():
             escrow_fraud_alert = True
             num_fraud_reads += 1
@@ -786,8 +891,6 @@ for name, read in escrow_read_objects.items():
 votes.close()
 
 del escrow_read_objects
-
-Reads.total_escrow_reads = Reads.total_escrow_reads_kept + Reads.total_escrow_reads_discarded
 
 logging.info('\tUsed %d reads for escrow distribution, out of %d (%7.3f%%) reads with perfect alignments or %7.3f%% of total.',
             Reads.total_escrow_reads,
@@ -800,11 +903,12 @@ if Reads.total_escrow_reads_discarded > 0:
                 Reads.total_escrow_reads_discarded,
                 Reads.total_escrow_reads,
                 Reads.total_escrow_reads_kept,
-                Reads.total_escrow_reads_kept*100/Reads.reads_w_perfect_alignments)
+                Reads.total_escrow_reads_kept * 100 / Reads.reads_w_perfect_alignments)
     
 if singular_fraud_alert or escrow_fraud_alert:
     logging.critical('[FATAL] There were signs of voter fraud. See the votes file (%s) for the complete picture.', vote_file)
-    logging.critical("[FATAL] Voter fraud committed by " +str(num_fraud_reads)+ " out of " +str(Reads.total_escrow_reads)+ " escrow reads")
+    logging.critical("\tVoter fraud committed by " +str(num_singular_fraud_reads)+ " out of " +str(Reads.total_singular_reads_in_pairs)+ " singular reads in pairs")
+    logging.critical("\tVoter fraud committed by " +str(num_fraud_reads)+ " out of " +str(Reads.total_escrow_reads)+ " escrow reads")
     sys.exit("Voter Fraud Detected!")
 
 ###############################################################################
@@ -835,7 +939,8 @@ stats_df = pd.DataFrame()
 
 for name, strain in all_strain_obj.items():
     strain.calculate_escrow_coverage(bamfile_name, fastafile_name)
-    
+    strain.calculate_read_fraction()
+
     strain_stats_df = strain.compile_general_stats()
     if strain_stats_df is not None:
         stats_df = pd.DataFrame.add(stats_df, strain_stats_df, fill_value = 0)
@@ -864,6 +969,16 @@ stats.write(
     str(Reads.total_escrow_reads_kept) +','+
     str(Reads.total_escrow_reads_discarded) +'\n')
 stats.close()
+
+###############################################################################
+# Running an independent voting check
+###############################################################################
+logging.info('Running an independent voter fraud check ...')
+fraud_committed = Reads.check_for_fraud(vote_file, Reads.total_escrow_reads_discarded)
+if fraud_committed:
+    logging.critical('\tEvidence of voter fraud was found! :(')
+else:
+    logging.info('\tNo evidence of voter fraud detected! :)')
 
 ###############################################################################
 # The End

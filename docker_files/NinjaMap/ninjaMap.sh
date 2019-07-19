@@ -177,10 +177,10 @@ python ${scriptFolder}/ninjaMap3.py \
 totalReads=$(( $( zcat ${RAW_FASTQ}/read1.fastq.gz | wc -l ) / 4 ))
 readsAfterTrim=$(( $( zcat ${QC_FASTQ}/read1_trimmed.fastq.gz | wc -l ) / 4 ))
 uniqueReads=$( samtools view -f 0x40 ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam | cut -f1 | sort -u | wc -l )
-echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned' > ${LOG_DIR}/read_accounting.csv
-echo ${SAMPLE_NAME}','${totalReads}','${readsAfterTrim}','${uniqueReads} >> ${LOG_DIR}/read_accounting.csv
+echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned' > ${STATS_DIR}/read_accounting.csv
+echo ${SAMPLE_NAME}','${totalReads}','${readsAfterTrim}','${uniqueReads} >> ${STATS_DIR}/read_accounting.csv
 
-echo "Alignment completed."
+echo "NinjaMap completed."
 ls ${LOCAL}
 du -sh ${LOCAL}
 date
