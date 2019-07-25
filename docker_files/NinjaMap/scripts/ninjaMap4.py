@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# The one that uses weights from ninjaIndex.py
+
 # Each read gets 1 vote for candidate strains. 
 # The more strains it maps to the lower the value of it's vote.
 # Note: we are not calculating coverage, just read assignments.
@@ -168,15 +170,18 @@ class Strains:
     total_genome_size = 0
     total_strains = 0
     
-    def __init__(self, strain_name):
+    def __init__(self, strain_name, strain_wt, strain_score, strain_unique_bases):
         self.name = strain_name
+        self.db_weight = strain_wt
+        self.uniqueness_score = strain_score
+        self.indexed_uniquely_covered_bases = strain_unique_bases
+
         self.num_singular_reads = 0
         self.num_escrow_reads = 0
         self.num_contigs = 0
         self.genome_size = 0
         self.cum_primary_votes = 0
         self.cum_escrow_votes = 0
-        self.uniqueness_score = 0
         
         self.total_covered_bases = 0
         self.total_covered_depth = 0
@@ -192,6 +197,8 @@ class Strains:
         self.adjusted_votes = 0
         self.escrow_vote_conversion_rate = 0
         self.singular_vote_conversion_rate = 0
+
+        self.read_fraction = 0
         
         self.covered_bases = set()
         self.contigs = defaultdict(int)
@@ -210,8 +217,8 @@ class Strains:
         return not(self == other)
         
     def add_contig(self, contig_name, contig_length):
-        self.contigs[contig_name] = contig_length
-        self.genome_size += contig_length
+        self.contigs[contig_name] = int(contig_length)
+        self.genome_size += int(contig_length)
         self.num_contigs += 1
         
     def add_paired_singular_vote(self, read_name, mate_name, read_template_len, read_vote = 1):
@@ -295,7 +302,7 @@ class Strains:
             #        pileupread.alignment.query_sequence[pileupread.query_position]))
             read_unique_name = Reads.get_unique_read_name(pileupread.alignment)
             if read_unique_name in bin_dict.keys():
-                # Only calculate coverage from reads with perfect alignment(singular or escrow).
+                # Only calculate depth from reads with perfect alignment(singular or escrow).
                 wt_base_depth += bin_dict[read_unique_name]
                 self.total_covered_depth += 1
 
@@ -383,6 +390,9 @@ class Strains:
 
         wt_coverage_depth = 0
         if (self.uniquely_covered_bases + self.escrow_covered_bases) > 0:
+            # unique_depth_per_base = self.uniquely_covered_depth / (self.uniquely_covered_bases + self.escrow_covered_bases)
+            # escrow_depth_per_base = self.escrow_covered_depth / (self.uniquely_covered_bases + self.escrow_covered_bases)
+            # wt_coverage_depth = (unique_depth_per_base + escrow_depth_per_base) #/ self.genome_size
             unique_depth_per_base = self.uniquely_covered_depth * self.uniquely_covered_bases / (self.uniquely_covered_bases + self.escrow_covered_bases)
             escrow_depth_per_base = self.escrow_covered_depth * self.escrow_covered_bases / (self.uniquely_covered_bases + self.escrow_covered_bases)
             wt_coverage_depth = (unique_depth_per_base + escrow_depth_per_base) / self.genome_size
@@ -414,21 +424,42 @@ class Strains:
     #     self.adj_primary_wt = self.cum_primary_votes / self.indexed_uniquely_covered_bases
     #     return self.adj_primary_wt
 
-    def calculate_sunits_original_adjustment(self):
-        self.adj_primary_wt = self.cum_primary_votes / Reads.total_reads_aligned
-        return self.adj_primary_wt
-    
-    # def calculate_sunits_simplified_adjustment(self):
-    #     self.adj_primary_wt = self.cum_primary_votes / self.uniquely_covered_bases
+    # def calculate_sunits_original_adjustment(self):
+    #     self.adj_primary_wt = self.cum_primary_votes / Reads.total_reads_aligned
     #     return self.adj_primary_wt
-
-    # def calculate_mike_drop_penalty(self):
-    #     self.uniqueness_score = self.indexed_uniquely_covered_bases / Strains.total_indexed_uniquely_covered_bases
-    #     return self.uniqueness_score
+    
+    def mike_drop_adjustment(self):
+        self.adj_primary_wt = self.cum_primary_votes / self.indexed_uniquely_covered_bases
+        return self.adj_primary_wt
 
     def calculate_read_fraction(self):
         self.read_fraction = (self.cum_escrow_votes + self.cum_primary_votes) * 100 / Reads.total_reads_aligned
         return self.read_fraction
+
+    @classmethod
+    def get_db_metadata(cls, binmap_file):
+        bins = defaultdict()
+        all_strain_obj = defaultdict()
+        all_strains = defaultdict(list)
+        with open(binmap_file, "r") as binmap:
+            next(binmap) # skip first/header line.
+            for line in binmap:
+                line=line.rstrip()
+                strain_name, strain_wt, strain_score, strain_unique_bases, contig_name, contig_length = line.split(',')
+
+                strain_name = os.path.basename(strain_name)
+                if strain_name in all_strain_obj.keys():
+                    strain = all_strain_obj[strain_name]
+                else:
+                    strain = Strains(strain_name, float(strain_wt), float(strain_score), float(strain_unique_bases))
+                    all_strain_obj[strain_name] = strain
+                    cls.total_strains += 1
+
+                strain.add_contig(contig_name, int(contig_length))
+                bins[contig_name] = strain_name
+                cls.total_genome_size += int(contig_length)
+
+        return bins, all_strain_obj
 
 class Reads:
     total_reads_aligned = 0
@@ -528,26 +559,6 @@ class Reads:
                 return common_strains_list[0].name
             else:
                 return None
-        #     if read.in_singular_bin and mate.in_singular_bin:
-        #         # they both match a single strain
-        #         read_strain = list(read.mapped_strains.keys())[0] # basically the only one.
-        #         mate_strain = list(mate.mapped_strains.keys())[0] # basically the only one.
-        #         if read_strain.name == mate_strain.name:
-        #             # the strains are the same
-        #             return read_strain.name
-        #     elif read.in_singular_bin and not mate.in_singular_bin:
-        #         # R1 matches a single strain, but R2 matches multiple
-        #         read_strain = list(read.mapped_strains.keys())[0] # basically the only one.
-        #         if read_strain.name in mate.mapped_strains.values():
-        #             # If there is an overlap between strain matches, R1 recruits R2 for it's strain match
-        #             return read_strain.name
-        #     elif mate.in_singular_bin and not read.in_singular_bin:
-        #         # R2 matches a single strain, but R1 matches multiple
-        #         mate_strain = list(mate.mapped_strains.keys())[0] # basically the only one.
-        #         if mate_strain.name in read.mapped_strains.values():
-        #             # If there is an overlap between strain matches, R2 recruits R1 for it's strain match
-        #             return mate_strain.name
-        # return None
 
     @staticmethod
     def is_perfect_alignment(aln):
@@ -609,6 +620,7 @@ class Reads:
         df = pd.read_csv(votes_file, index_col='Read_Name', usecols=['Read_Name', 'cSingular_Vote', 'cEscrow_Vote'])
         df['Total_Votes'] = round((df['cSingular_Vote'] + df['cEscrow_Vote']), 5)
         df = df.drop(['cSingular_Vote',  'cEscrow_Vote'], axis = 1)
+        
         votes_df = df.groupby('Read_Name').sum()
         gt_row, gt_col = votes_df[(votes_df.Total_Votes > 1.001)].shape
         mid_row, mid_col = votes_df[(votes_df.Total_Votes > 0.001) & (votes_df.Total_Votes < 0.999)].shape
@@ -616,40 +628,36 @@ class Reads:
             fraud_status = False
 
         return fraud_status
-
 ###############################################################################
 # Parse the Contig to Bin/Strain name map file.
 ###############################################################################
-
 logging.info('Processing the Bin Map file: %s ...', binmap_file)
 # Header = ('Strain_Name,Strain_Weight,Contig_Name,Contig_Length\n')
-all_strains = defaultdict(list)
-with open(binmap_file, "r") as binmap:
-    for line in binmap:
-        line=line.rstrip()
-        contig_name, strain_name = line.split('\t')
-        # all_strains[strain_name].append(line)
-        all_strains[strain_name].append(contig_name)
+# all_strains = defaultdict(list)
+# with open(binmap_file, "r") as binmap:
+#     for line in binmap:
+#         line=line.rstrip()
+#         contig_name, strain_name = line.split('\t')
+#         # all_strains[strain_name].append(line)
+#         all_strains[strain_name].append(contig_name)
 
-all_strain_obj = defaultdict(int)
-strains_list = list(all_strains.keys())
-fasta = pysam.FastaFile(fastafile_name)
-bins = defaultdict()
-for strain_name in strains_list:
-    strain = Strains(strain_name)
-    all_strain_obj[strain_name] = strain
-    for contig_name in all_strains[strain_name]:
-    # for line in all_strains[strain_name]:
-        # binmap_strain_name, strain.uniqueness_score, contig_name, contig_length = line.split('\t')
-        strain.add_contig(contig_name, fasta.get_reference_length(contig_name))
-        bins[contig_name] = strain_name
-        Strains.total_genome_size += fasta.get_reference_length(contig_name)
+# all_strain_obj = defaultdict(int)
+# strains_list = list(all_strains.keys())
+# fasta = pysam.FastaFile(fastafile_name)
+# bins = defaultdict()
+# for strain_name in strains_list:
+#     strain = Strains(strain_name)
+#     all_strain_obj[strain_name] = strain
+#     for contig_name in all_strains[strain_name]:
+#     # for line in all_strains[strain_name]:
+#         # binmap_strain_name, strain.uniqueness_score, contig_name, contig_length = line.split('\t')
+#         strain.add_contig(contig_name, fasta.get_reference_length(contig_name))
+#         bins[contig_name] = strain_name
+#         Strains.total_genome_size += fasta.get_reference_length(contig_name)
 
-Strains.total_strains = len(all_strains.keys())
-logging.info('\t%d contigs assigned to %d strains', len(bins.keys()), Strains.total_strains)
-fasta.close()
+bins, all_strain_obj = Strains.get_db_metadata(binmap_file)
 
-del all_strains
+logging.info('\t%d contigs assigned to %d strains', len(bins.keys()), len(all_strain_obj.keys()))
 ###############################################################################
 # Parse the BAM file
 ###############################################################################
@@ -832,7 +840,7 @@ num_fraud_reads = 0
 
 for name, read in escrow_read_objects.items():
     read_vote_value = 0
-    total_primary_wts = 0
+    total_adj_singular_votes = 0
     to_discard = False
     common_strains_list = list()
 
@@ -851,15 +859,19 @@ for name, read in escrow_read_objects.items():
         # Allow voting ONLY if the read it hasn't voted already
         # discard = read.calculate_escrow_abundance()
         # for strain in read.mapped_strains.keys():
-
+        adj_singular_vote = defaultdict()
         for strain in common_strains_list:
-            total_primary_wts += strain.calculate_sunits_original_adjustment() # self.cum_primary_votes / Reads.total_reads_aligned
+            total_adj_singular_votes = 0
+            # Normalize by strain weights based on singular alignments
+            if strain.indexed_uniquely_covered_bases > 0:
+                adj_singular_vote[strain] = strain.mike_drop_adjustment()  # self.cum_primary_votes / self.indexed_uniquely_covered_bases
+                total_adj_singular_votes += adj_singular_vote[strain]
 
-        if total_primary_wts > 0:
+        if total_adj_singular_votes > 0:
             Reads.total_escrow_reads_kept += 1
             # Spread 1 vote/read based on the singular weight of strains aligned to
-            for strain in read.mapped_strains.keys():
-                read_vote_value = 1 * strain.adj_primary_wt / total_primary_wts
+            for strain, adj_strain_singular_vote in adj_singular_vote.items():
+                read_vote_value = 1 * adj_strain_singular_vote / total_adj_singular_votes
                 strain.add_escrow_vote(read.unique_name, read.read_length, read_vote_value)
                 read.add_vote(read_vote_value)
         else:
