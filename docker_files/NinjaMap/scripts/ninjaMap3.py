@@ -315,14 +315,6 @@ class Strains:
         else:
             self.escrow_vote_conversion_rate = 0
 
-        if (self.num_singular_reads > 0) or (self.num_escrow_reads > 0):
-            self.adjusted_votes = ((self.cum_primary_votes * self.num_singular_reads) + (self.cum_escrow_votes * self.num_escrow_reads))/(self.num_singular_reads + self.num_escrow_reads)
-        else:
-            self.adjusted_votes = 0
-            
-        self.aln_norm_abundance = self.adjusted_votes / Reads.reads_w_perfect_alignments
-        self.genome_norm_abundance = (self.aln_norm_abundance * self.total_covered_bases) / self.genome_size
-
     def compile_general_stats(self):
         '''
         for each object of this class, return a pandas data frame with 
@@ -337,16 +329,17 @@ class Strains:
         self._normalize_votes()
         
         if self.uniquely_covered_bases > 0:
-            singular_depth = (self.uniquely_covered_depth/self.uniquely_covered_bases) * self.genome_size
+            singular_depth = (self.uniquely_covered_depth/self.uniquely_covered_bases)
             
         if self.escrow_covered_bases > 0:
-            escrow_depth = (self.escrow_covered_depth/self.escrow_covered_bases) * self.genome_size
+            escrow_depth = (self.escrow_covered_depth/self.escrow_covered_bases)
         
         # Dataframe
         return pd.DataFrame(
             index = [self.name],
             data  = {
                 'Genome_Size' : self.genome_size,
+                'Percent_Coverage' : self.total_covered_bases * 100 / self.genome_size,
                 'Total_Bases_Covered' : self.total_covered_bases,
                 'Coverage_Depth' : self.total_covered_depth/self.genome_size,
                 'Read_Fraction' : self.read_fraction,
@@ -354,7 +347,7 @@ class Strains:
                 'Total_Singular_Reads' : self.num_singular_reads,
                 'Total_Singular_Votes' : self.cum_primary_votes,
                 'Singular_Read_Vote_Ratio' : self.singular_vote_conversion_rate,
-                'Singular_Fraction_of_all_aligned_Reads' : self.num_singular_reads/Reads.total_reads_aligned,
+                'Singular_Fraction_of_Singular_Reads' : self.num_singular_reads/Reads.total_singular_reads,
                 'Singular_Coverage' : self.uniquely_covered_bases,
                 'Singular_Depth' : singular_depth,
                 'Total_Escrow_Reads' : self.num_escrow_reads,
@@ -443,7 +436,7 @@ class Reads:
         self.name = name
         self.unique_name = name
         self.mates_unique_name = mate_name
-        self.read_length = read_length
+        self.read_length = abs(read_length)
         self.template_length = abs(template_length)
 
         self.cum_vote = 0
