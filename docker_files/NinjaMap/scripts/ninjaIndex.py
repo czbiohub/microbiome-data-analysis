@@ -65,6 +65,9 @@ p.add_argument('-fasta_ext', dest='ext', action='store', type=str, default = "fn
 p.add_argument('-prefix', dest='prefix', action='store', type=str,
                 help='[Output] output prefix. Watch out for a comma-delimited binmap file and a concatenated fasta file for ninjaMap')
 
+# Optional
+p.add_argument('-outdir', dest='outdir', action='store', type=str,
+                help='output directory')
 p.add_argument('-threads', dest='threads', action='store', type=str, default=1,
                 help='number of threads available for this job and subprocesses')
 p.add_argument('-debug', dest='debug', action='store_true', default=False,    
@@ -76,10 +79,18 @@ bamfile_name = args['bamfile']
 fastafile_dir = args['fastadir']
 fasta_ext = args['ext']
 
-if not args['prefix']:
-    prefix = os.path.basename(bamfile_name).split('.')[0]
+if not args['outdir']:
+    output_dir = "db"
 else:
-    prefix = args['prefix']
+    output_dir = args['outdir']
+
+os.makedirs(output_dir, exist_ok=True)
+
+if not args['prefix']:
+    default_prefix = os.path.basename(bamfile_name).split('.')[0]
+    prefix = os.path.join(output_dir, default_prefix)
+else:
+    prefix = os.path.join(output_dir, args['prefix'])
 
 binmap_file = prefix +'.ninjaIndex.binmap.csv'
 fasta_file = prefix + ".ninjaIndex.fna"
