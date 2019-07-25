@@ -756,7 +756,7 @@ if len(read_objects.keys()) != Reads.reads_w_perfect_alignments:
 ###############################################################################
 votes = gzip.open(vote_file, 'wt')
 # Header
-votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
+votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,Num_Strains_Aligned,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
 escrow_read_objects = defaultdict()
 singular_fraud_alert = False
 num_singular_fraud_reads = 0
@@ -779,11 +779,11 @@ for name, read in read_objects.items():
             Reads.total_singular_reads_in_pairs += 2
 
             votes.write(read.name + ',' + strain.name + ',' + str(strain.singular_bin[read.unique_name]) + ',' + 
-                str(strain.escrow_bin[read.unique_name]) + ',' + 'False,'+ 
+                str(strain.escrow_bin[read.unique_name]) + ',' + '1,False,'+ 
                 str(read.has_voted)+','+str(read.in_singular_bin)+','+str(read.mate_has_perfect_match)+'\n')
             
             votes.write(mate.name + ',' + strain.name + ',' + str(strain.singular_bin[mate.unique_name]) + ',' + 
-                str(strain.escrow_bin[mate.unique_name]) + ',' + 'False,'+ 
+                str(strain.escrow_bin[mate.unique_name]) + ',' + '1,False,'+ 
                 str(mate.has_voted)+','+str(mate.in_singular_bin)+','+str(read.mate_has_perfect_match)+'\n')
         else:
             escrow_read_objects[name] = read
@@ -857,12 +857,12 @@ for name, read in escrow_read_objects.items():
         # discard = read.calculate_escrow_abundance()
         # for strain in read.mapped_strains.keys():
         adj_singular_vote = defaultdict()
+        total_adj_singular_votes = 0
         for strain in common_strains_list:
-            total_adj_singular_votes = 0
             # Normalize by strain weights based on singular alignments
-            if strain.indexed_uniquely_covered_bases > 0:
-                adj_singular_vote[strain] = strain.mike_drop_adjustment()  # self.cum_primary_votes / self.indexed_uniquely_covered_bases
-                total_adj_singular_votes += adj_singular_vote[strain]
+            # if strain.indexed_uniquely_covered_bases > 0:
+            adj_singular_vote[strain] = strain.mike_drop_adjustment()  # self.cum_primary_votes / self.indexed_uniquely_covered_bases
+            total_adj_singular_votes += adj_singular_vote[strain]
 
         if total_adj_singular_votes > 0:
             Reads.total_escrow_reads_kept += 1
@@ -881,7 +881,7 @@ for name, read in escrow_read_objects.items():
     for voting_detail_sublist in voting_details:
         strain_name, singular_vote_count, escrow_vote_count, cumulative_vote = voting_detail_sublist
         votes.write(read.name + ',' + strain_name + ',' + str(singular_vote_count) + ',' + 
-                    str(escrow_vote_count) + ',' + str(to_discard) +','+ 
+                    str(escrow_vote_count) + ',' + str(len(common_strains_list)) + ',' + str(to_discard) +','+ 
                     str(read.has_voted)+','+str(read.in_singular_bin)+','+ str(read.mate_has_perfect_match)+'\n')
         if read.is_fraud():
             escrow_fraud_alert = True

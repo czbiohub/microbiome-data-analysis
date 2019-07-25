@@ -751,7 +751,8 @@ if len(read_objects.keys()) != Reads.reads_w_perfect_alignments:
 ###############################################################################
 votes = gzip.open(vote_file, 'wt')
 # Header
-votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
+# votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
+votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,Num_Strains_Aligned,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
 escrow_read_objects = defaultdict()
 singular_fraud_alert = False
 num_singular_fraud_reads = 0
@@ -774,11 +775,11 @@ for name, read in read_objects.items():
             Reads.total_singular_reads_in_pairs += 2
 
             votes.write(read.name + ',' + strain.name + ',' + str(strain.singular_bin[read.unique_name]) + ',' + 
-                str(strain.escrow_bin[read.unique_name]) + ',' + 'False,'+ 
+                str(strain.escrow_bin[read.unique_name]) + ',' + '1,False,'+ 
                 str(read.has_voted)+','+str(read.in_singular_bin)+','+str(read.mate_has_perfect_match)+'\n')
             
             votes.write(mate.name + ',' + strain.name + ',' + str(strain.singular_bin[mate.unique_name]) + ',' + 
-                str(strain.escrow_bin[mate.unique_name]) + ',' + 'False,'+ 
+                str(strain.escrow_bin[mate.unique_name]) + ',' + '1,False,'+ 
                 str(mate.has_voted)+','+str(mate.in_singular_bin)+','+str(read.mate_has_perfect_match)+'\n')
         else:
             escrow_read_objects[name] = read
