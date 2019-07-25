@@ -108,6 +108,7 @@ class Strains:
         self.uniquely_covered_bases = 0
         self.adj_primary_wt = 0
         self.adj_primary_wt_2 = 0
+        self.adj_primary_wt_3 = 0
         
         self.aln_norm_abundance = 0
         self.genome_norm_abundance = 0
