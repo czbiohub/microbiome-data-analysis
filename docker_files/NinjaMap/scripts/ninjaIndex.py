@@ -374,7 +374,7 @@ class Parser:
     def create_bin_map(all_strain_obj, binmap_file):
         binmap = open(binmap_file, 'w')
         # Header
-        # strain_name, strain_wt, strain_score, strain_unique_bases, contig_name, contig_length
+        # strain_name, strain_wt_1, strain_wt_2, strain_wt_3, strain_score, strain_unique_bases, contig_name, contig_length
         binmap.write('Strain_Name,Strain_Weight_Andres,Strain_Weight_Original, Strain_Weight_UScore,Strain_Uniqueness_Score,Strain_Absolute_Unique_Bases,Contig_Name,Contig_Length\n')
         for name, strain in all_strain_obj.items():
             line = ''

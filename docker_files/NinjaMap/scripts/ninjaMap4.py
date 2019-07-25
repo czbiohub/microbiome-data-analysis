@@ -445,7 +445,9 @@ class Strains:
             next(binmap) # skip first/header line.
             for line in binmap:
                 line=line.rstrip()
-                strain_name, strain_wt, strain_score, strain_unique_bases, contig_name, contig_length = line.split(',')
+                strain_name, strain_wt_1, strain_wt_2, strain_wt_3, strain_score, strain_unique_bases, contig_name, contig_length = line.split(',')
+                # The chosen one
+                strain_wt = strain_wt_1
 
                 strain_name = os.path.basename(strain_name)
                 if strain_name in all_strain_obj.keys():
