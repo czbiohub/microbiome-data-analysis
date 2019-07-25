@@ -444,7 +444,7 @@ class Reads:
         self.unique_name = name
         self.mates_unique_name = mate_name
         self.read_length = read_length
-        self.template_length = template_length
+        self.template_length = abs(template_length)
 
         self.cum_vote = 0
         self.has_voted = False
