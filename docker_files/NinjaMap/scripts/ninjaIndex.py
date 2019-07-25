@@ -93,7 +93,7 @@ else:
     prefix = os.path.join(output_dir, args['prefix'])
 
 binmap_file = prefix +'.ninjaIndex.binmap.csv'
-fasta_file = prefix + ".ninjaIndex.fna"
+fasta_file = prefix + ".ninjaIndex.fasta"
 
 logging.basicConfig(level=logging.DEBUG,
     format='%(asctime)s\t[%(levelname)s]:\t%(message)s')
