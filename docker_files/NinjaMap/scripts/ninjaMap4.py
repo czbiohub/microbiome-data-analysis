@@ -106,8 +106,8 @@ python ninjaMap.py -bin contig_names_bin_map.txt -bam Bacteroides-sp-9-1-42FAA/B
 # Required
 p.add_argument('-bam', dest='bamfile', action='store', type=str, required = True,
                 help='name sorted bam file.')
-p.add_argument('-fasta', dest='fastafile', action='store', type=str, required = True,
-                help='database fasta file')
+# p.add_argument('-fasta', dest='fastafile', action='store', type=str, required = True,
+#                 help='database fasta file')
 p.add_argument('-bin', dest='binmap', action='store', type=str, required = True,
                 help='tab-delimited file with Col1= contig name and Col2=Bin/Strain name')
 p.add_argument('-outdir', dest='outdir', action='store', type=str, required = True,
@@ -127,7 +127,7 @@ args = vars(p.parse_args())
 # bamfile_name = "/Users/sunit.jain/Research/SyntheticCommunities/ReadAlignment/Testing/Mismaps/Bacteroides-coprophilus-DSM-18228/Bacteroides-coprophilus-DSM-18228.processed.bam"
 # abundance_output_file = 'B_coprophilius.ninjaMap.v1.abundance.tsv'
 bamfile_name = args['bamfile']
-fastafile_name = args['fastafile']
+# fastafile_name = args['fastafile']
 binmap_file = args['binmap']
 output_dir = args['outdir']
 
@@ -248,12 +248,11 @@ class Strains:
         unique_contig_name = contig_name+'_'+str(contig_pos)
         self.covered_bases.add(unique_contig_name)
         
-    def calculate_singular_coverage (self, bamfile_name, fasta_file):
+    def calculate_singular_coverage (self, bamfile_name):
         if self.num_singular_reads == 0:
             return
         
         cov_bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
-        fasta = pysam.FastaFile(fasta_file)
         
         for contig_name in self.contigs.keys():
             for pileupcolumn in cov_bamfile.pileup(contig = contig_name, stepper = 'all', min_base_quality = 20):
@@ -266,16 +265,13 @@ class Strains:
                         self._add_covered_base(contig_name, pileupcolumn.reference_pos)
                         self.uniquely_covered_depth += base_cov_contribution
         cov_bamfile.close()
-        fasta.close()
-        
         return
     
-    def calculate_escrow_coverage (self, bamfile_name, fasta_file):
+    def calculate_escrow_coverage (self, bamfile_name):
         if self.num_escrow_reads == 0:
             return
         
         cov_bamfile = pysam.AlignmentFile(bamfile_name, mode = 'rb')
-        fasta = pysam.FastaFile(fasta_file)
         for contig_name in self.contigs.keys():
 #             for pileupcolumn in cov_bamfile.pileup(contig = contig_name, stepper = 'samtools', fastafile = fasta, min_base_quality = min_base_qual):
             for pileupcolumn in cov_bamfile.pileup(contig = contig_name, stepper = 'all', min_base_quality = 20):
@@ -289,7 +285,6 @@ class Strains:
                         # self.escrow_covered_bases += 1
                         self._add_covered_base(contig_name, pileupcolumn.reference_pos)
                         self.escrow_covered_depth += base_cov_contribution
-
         cov_bamfile.close()
         return
 
@@ -828,7 +823,7 @@ i = 0
 for name, strain in all_strain_obj.items():
     i += 1
     logging.info("\t[%d/%d] Searching for exclusive support for :\t%s",i, Strains.total_strains, name)
-    strain.calculate_singular_coverage(bamfile_name, fastafile_name)
+    strain.calculate_singular_coverage(bamfile_name)
 
 ###############################################################################
 # Use the strain abundance distribution based on Singular alignments to weight
@@ -944,7 +939,7 @@ i = 0
 for name, strain in all_strain_obj.items():
     i += 1
     logging.info("\t[%d/%d]Searching for escrow support for :\t%s",i, Strains.total_strains, name)
-    strain.calculate_escrow_coverage(bamfile_name, fastafile_name)
+    strain.calculate_escrow_coverage(bamfile_name)
     strain.calculate_read_fraction()
 
     strain_stats_df = strain.compile_general_stats()
