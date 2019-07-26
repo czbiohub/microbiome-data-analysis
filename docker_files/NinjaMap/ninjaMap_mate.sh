@@ -134,29 +134,23 @@ bowtie2 \
 # Removed: -D 10 -R 2 -L 31 -i S,0,2.50 -N 0
 # Added: --very-sensitive
 
-# Mark PCR Duplicates
-# samtools sort \
-#     -n \
-#     -@ ${coreNum} \
-#     -m ${memPerCore} \
-#     -O BAM \
-#     ${TMP_OUTPUTS}/${SAMPLE_NAME}.bam |\
-# samtools fixmate \
-#     -O BAM \
-#     -cm \
-#     - - | \
-# samtools sort \
-#     -@ ${coreNum} \
-#     -m ${memPerCore} \
-#     -O BAM \
-#     - |\
-# samtools markdup \
-#     -s \
-#     -S - \
-#     ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam |\
-#     tee -a ${LOG_DIR}/samtools_markdup.log.txt
+# Fix Mates
+samtools sort \
+    -n \
+    -@ ${coreNum} \
+    -m ${memPerCore} \
+    -O BAM \
+    ${TMP_OUTPUTS}/${SAMPLE_NAME}.bam |\
+samtools fixmate \
+    -O BAM \
+    -cm \
+    - - | \
+samtools sort \
+    -@ ${coreNum} \
+    -m ${memPerCore} \
+    -o ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam
 
-samtools sort -@ ${coreNum} -o ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam ${TMP_OUTPUTS}/${SAMPLE_NAME}.bam
+# samtools sort -@ ${coreNum} -o ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam ${TMP_OUTPUTS}/${SAMPLE_NAME}.bam
 samtools index -@ ${coreNum} ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam
 
 # 3328 =

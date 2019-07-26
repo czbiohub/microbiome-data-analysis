@@ -140,7 +140,7 @@ else:
     prefix = os.path.join(output_dir, args['prefix'])
 
 abundance_output_file = prefix +'.ninjaMap.abundance.csv'
-stats_file = prefix +'.ninjaMap.stats.csv'
+stats_file = prefix +'.ninjaMap.read_stats.csv'
 vote_file = prefix +'.ninjaMap.votes.csv.gz'
 strain_stats_file = prefix +'.ninjaMap.strain_stats.csv'
 logfile = prefix +'.ninjaMap.log.txt'
@@ -417,7 +417,8 @@ class Strains:
     #     return self.adj_primary_wt
     
     def mike_drop_adjustment(self):
-        self.adj_primary_wt = self.cum_primary_votes / self.indexed_uniquely_covered_bases
+        # self.adj_primary_wt = self.cum_primary_votes / self.indexed_uniquely_covered_bases
+        self.adj_primary_wt = self.cum_primary_votes / self.db_weight
         return self.adj_primary_wt
 
     def calculate_read_fraction(self):
@@ -435,7 +436,7 @@ class Strains:
                 line=line.rstrip()
                 strain_name, strain_wt_1, strain_wt_2, strain_wt_3, strain_score, strain_unique_bases, contig_name, contig_length = line.split(',')
                 # The chosen one
-                strain_wt = strain_wt_1
+                strain_wt = strain_wt_2
 
                 strain_name = os.path.basename(strain_name)
                 if strain_name in all_strain_obj.keys():
@@ -540,8 +541,8 @@ class Reads:
     
     @staticmethod
     def choose_primary_candidate(read, mate):
-        if (read.template_length == 0) or (mate.template_length == 0):
-            return None
+        # if (read.template_length == 0) or (mate.template_length == 0):
+        #     return None
 
         if read.mate_has_perfect_match or mate.mate_has_perfect_match :
             common_strains_list = intersection(read.mapped_strains.keys(), mate.mapped_strains.keys())

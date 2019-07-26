@@ -190,11 +190,6 @@ class Strains:
 
         return
 
-    def calculate_adj_primary_wt_uniqueness_score(self):
-        # Sunit's interpretation of Mike drop adjustment
-        self.adj_primary_wt_3 = (1 - self.uniqueness_score) * self.cum_primary_votes / Reads.total_reads_aligned
-        return self.adj_primary_wt_3
-
     def calculate_andres_adjustment(self):
         # Andres's interpretation of Mike drop adjustment.
         # Actually in his interpretation, 'unique # bases' needed to be calculated for all the strains
@@ -211,7 +206,11 @@ class Strains:
     def calculate_mike_drop_penalty(self):
         self.uniqueness_score = self.uniquely_covered_bases / Strains.total_uniquely_covered_bases
         return self.uniqueness_score
-
+    
+    def calculate_adj_primary_wt_uniqueness_score(self):
+        # Sunit's interpretation of Mike drop adjustment
+        self.adj_primary_wt_3 = (1 - self.uniqueness_score) * self.cum_primary_votes / Reads.total_reads_aligned
+        return self.adj_primary_wt_3
 class Reads:
     total_reads_aligned = 0
     reads_w_perfect_alignments = 0
