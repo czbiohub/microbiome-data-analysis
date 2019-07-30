@@ -18,7 +18,7 @@ USER root:root
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get clean && \
     apt-get update && \
-    apt-get install -y grinder awscli pigz vim && \
+    apt-get install -y grinder awscli pigz vim htop && \
     apt-get clean && \
     apt-get purge && \
     rm -rf /var/lib/apt/lists/* /tmp/*

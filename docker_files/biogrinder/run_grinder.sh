@@ -48,7 +48,7 @@ grinder \
     -rf "${LOCAL_FASTA}" &> "${LOG_DIR}.log"
 
 # Deinterleave and compress
-paste - - - - - - - - < "${RAW_FASTQ}/${PREFIX}-reads.fastq" | tee >(cut -f 1-4 | tr "\t" "\n" | pigz --best --processes ${PIGZ_COMPRESSION_THREADS} > $FWD) | cut -f 5-8 | tr "\t" "\n" | pigz --best --processes ${PIGZ_COMPRESSION_THREADS} > $REV
+paste - - - - - - - - < "${RAW_FASTQ}/${PREFIX}-reads.fastq" | sed "s/@/@${PREFIX}_/g" | tee >(cut -f 1-4 | tr "\t" "\n" | pigz --best --processes ${PIGZ_COMPRESSION_THREADS} > $FWD) | cut -f 5-8 | tr "\t" "\n" | pigz --best --processes ${PIGZ_COMPRESSION_THREADS} > $REV
 
 # Sync
 aws s3 sync ${LOCAL_OUTPUT} ${S3OUTPUTPATH}
