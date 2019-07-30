@@ -37,6 +37,7 @@ p = argparse.ArgumentParser(usage=usage)
 p.add_argument(dest='seedfile', action='store', type=str)
 p.add_argument(dest='s3output_root', type=str) # include s3://...
 p.add_argument(dest='output_command', action='store', type=str)
+p.add_argument('--method', dest='method', action='store', type=str, required = True)
 p.add_argument('-i', '--image', dest='image', action='store', type=str, default='sunitjain/ninjamap:latest')
 p.add_argument('-m', '--memory', dest='memory', action='store', type=int, default=128000)
 p.add_argument('-c', '--core', dest='vcpus', action='store', type=int, default=16)
@@ -47,14 +48,26 @@ p.add_argument('--subset', dest='subsetReads', action='store', type=str, default
 p.add_argument('--hardTrim', dest='hardTrim', action='store', type=str, default='\'\'')
 
 arguments = p.parse_args()
-
+script=''
+if arguments.method == 'original':
+    script = "./ninjaMap_naive.sh"
+elif arguments.method == 'mates':
+    script = "./ninjaMap_mate.sh"
+elif arguments.method == 'indexed':
+    script = "./ninjaMap_index.sh"
+else:
+    print(f'{arguments.method} is not a valid option.Please use one of the following terms: original, mates or indexed')
 
 # Create base command string aegea_batch or aegea_batch_demux
 mem_per_core=str(int(arguments.memory/(arguments.vcpus*1000)))+'G'
 s3_bucket = 's3://czbiohub-microbiome/'
-base_string = 'aegea batch submit --retry-attempts '+arguments.max_retries+' --queue '+arguments.queue+' --image '+arguments.image+' --storage /mnt='+str(arguments.storage)+' --memory '+str(arguments.memory)+' --vcpus '+str(arguments.vcpus)+' --command='
-command_string1 = '"export coreNum='+str(arguments.vcpus)+'; export memPerCore='+mem_per_core+'; '
-command_string2 = './ninjaMap.sh"'
+base_string = 'aegea batch submit --retry-attempts '+ str(arguments.max_retries)+ \
+    ' --queue '+arguments.queue+' --image '+arguments.image+ \
+    ' --storage /mnt='+str(arguments.storage)+ \
+    ' --memory '+str(arguments.memory)+\
+    ' --vcpus '+str(arguments.vcpus)+' '
+command_string1 = '--command="export coreNum='+str(arguments.vcpus)+'; export memPerCore='+mem_per_core+'; '
+command_string2 = script + '"'
 
 # Read in seedfile, column 1 (ie 2) needs to be sampleName
 run_samples = pd.read_csv(arguments.seedfile, sep=',', header=0, index_col='sampleName') 
@@ -88,6 +101,7 @@ with open(arguments.output_command, 'w') as command_file:
         # If the sample is not already processed, (subprocess.PIPE must be capitalized)
         if sample not in finished_samples:
             # If you only want a section of the samples analyzed
+            jobname = "--name NinjaMap_"+arguments.method+"_"+sample+" "
             sample_specific_file_names = 'export fastq1='+run_samples.loc[sample,'fastq1']+'; export fastq2='+run_samples.loc[sample,'fastq2']+'; export S3OUTPUTPATH='+arguments.s3output_root+'/'+sample+';'
-            t = command_file.write(base_string+command_string1+sample_specific_file_names+command_string2)
+            t = command_file.write(base_string+jobname+command_string1+sample_specific_file_names+command_string2)
             command_file.write('\n')

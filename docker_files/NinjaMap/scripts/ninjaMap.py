@@ -319,9 +319,10 @@ abund = open(abundance_output_file, 'w')
 abund.write('Strain_Name\tAbundance\n')
 for strain in strains_list:
     abundance = (strain_primary_abundance[strain] + strain_escrow_abundance[strain])*100/Total_Reads_Aligned
-    abund.write(strain +'\t'+
-        # str(round(abundance, 5)) +'\n')
-        str(abundance) +'\n')
+    if abundance > 0:
+        abund.write(strain +'\t'+
+            str(round(abundance, 6)) +'\n')
+            # str(abundance) +'\n')
 abund.close()
 
 stats = open(stats_file, 'w')

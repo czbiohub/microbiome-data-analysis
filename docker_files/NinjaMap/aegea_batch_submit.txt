@@ -1,7 +1,12 @@
 # TEST:
 aegea batch submit --retry-attempts 1 --queue microbiome-highPriority --image sunitjain/ninjamap \
     --storage /mnt=500 --memory 64000 --vcpus 16 \
-    --command="export trimQuality=30;export coreNum=16;export memPerCore=4G;export S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/2019-07-01_StrainVerification/Ruminococcus-lactaris-ATCC-29176; export fastq1=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Ruminococcus-lactaris-ATCC-29176_S135_R1_001.fastq.gz; export fastq2=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Ruminococcus-lactaris-ATCC-29176_S135_R2_001.fastq.gz;./ninjaMap.sh"
+    --command="export trimQuality=20;export coreNum=16;export memPerCore=4G;export S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/2019-07-25_GroundTruth_NM_Mate/Ruminococcus-lactaris-ATCC-29176; export fastq1=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Ruminococcus-lactaris-ATCC-29176_S135_R1_001.fastq.gz; export fastq2=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Ruminococcus-lactaris-ATCC-29176_S135_R2_001.fastq.gz; ./ninjaMap_mate.sh"
+
+
+aegea batch submit --watch --retry-attempts 1 --queue microbiome-highPriority --image sunitjain/ninjamap:latest \
+    --storage /mnt=500 --memory 64000 --vcpus 16 \
+    --command="export trimQuality=20;export coreNum=16;export memPerCore=4G;export S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/2019-07-25_GroundTruth_NM_Indexed/Ruminococcus-lactaris-ATCC-29176; export fastq1=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Ruminococcus-lactaris-ATCC-29176_S135_R1_001.fastq.gz; export fastq2=s3://czbiohub-microbiome/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Ruminococcus-lactaris-ATCC-29176_S135_R2_001.fastq.gz;./ninjaMap_index.sh"
 
 # New BOWTIE SETTINGS with strict BBDUK trimQ=30, kmer_value=25:
 aegea batch submit --retry-attempts 3 --queue microbiome-lowPriority --image sunitjain/ninjamap \

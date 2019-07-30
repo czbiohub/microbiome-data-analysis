@@ -877,9 +877,9 @@ for name, read in escrow_read_objects.items():
         votes.write(read.name + ',' + strain_name + ',' + str(singular_vote_count) + ',' + 
                     str(escrow_vote_count) + ',' + str(len(common_strains_list)) + ',' + str(to_discard) +','+ 
                     str(read.has_voted)+','+str(read.in_singular_bin)+','+ str(read.mate_has_perfect_match)+'\n')
-        if read.is_fraud():
-            escrow_fraud_alert = True
-            num_fraud_reads += 1
+    if read.is_fraud() and not to_discard:
+        escrow_fraud_alert = True
+        num_fraud_reads += 1
 
 votes.close()
 

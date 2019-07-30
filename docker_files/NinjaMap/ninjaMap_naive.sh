@@ -108,7 +108,7 @@ bbduk.sh -Xmx16g -eoom \
     minlen=${minLength} \
     refstats=${STATS_DIR}/adapter_trimming_stats_per_ref.txt |\
     tee -a ${LOG_DIR}/bbduk.log.txt
-	
+
 # bowtie2 alignment returning multiple alignments and using longer max insert size limites
 # output samtools bam file with only properly aligned paired reads.
 bowtie2 \
@@ -150,6 +150,14 @@ samtools sort \
     -m ${memPerCore} \
     -o ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam
 
+# # Mark PCR Duplicates
+# #     - |\
+# # samtools markdup \
+# #     -s \
+# #     -S - \
+# #     ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam |\
+# #     tee -a ${LOG_DIR}/samtools_markdup.log.txt
+
 # samtools sort -@ ${coreNum} -o ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam ${TMP_OUTPUTS}/${SAMPLE_NAME}.bam
 samtools index -@ ${coreNum} ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam
 
@@ -159,21 +167,23 @@ samtools index -@ ${coreNum} ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam
 #   supplementary alignment (0x800)
 # samtools view -F 3328 -q 10 Dorea-longicatena-DSM-13814.processed.bam | cut -f1 | sort | uniq | wc -l
 
-python ${scriptFolder}/ninjaMap3.py \
+python ${scriptFolder}/ninjaMap.py \
     -bam ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam \
     -bin ${referenceNameFile} \
-    -fasta ${DBNAME}.fasta \
-    -outdir ${NINJA_OUTPUT} \
-    -prefix ${SAMPLE_NAME}
+    -out ${NINJA_OUTPUT}/${OUTPUT_PREFIX}.abundance.tsv \
+    -stats ${NINJA_OUTPUT}/${OUTPUT_PREFIX}.stats.tsv \
+    -log ${LOG_DIR}/${SAMPLE_NAME}.ninjaMap.log.txt
+
+cat ${LOG_DIR}/${SAMPLE_NAME}.ninjaMap.log.txt
 
 # Tabulate read count
 totalReads=$(( $( zcat ${RAW_FASTQ}/read1.fastq.gz | wc -l ) / 4 ))
 readsAfterTrim=$(( $( zcat ${QC_FASTQ}/read1_trimmed.fastq.gz | wc -l ) / 4 ))
 uniqueReads=$( samtools view -f 0x40 ${BOWTIE2_OUTPUT}/${OUTPUT_PREFIX}.bam | cut -f1 | sort -u | wc -l )
-echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned' > ${STATS_DIR}/read_accounting.csv
-echo ${SAMPLE_NAME}','${totalReads}','${readsAfterTrim}','${uniqueReads} >> ${STATS_DIR}/read_accounting.csv
+echo 'Sample_Name,Total_Fragments,Fragments_After_Trim,Fragments_Aligned' > ${LOG_DIR}/read_accounting.csv
+echo ${SAMPLE_NAME}','${totalReads}','${readsAfterTrim}','${uniqueReads} >> ${LOG_DIR}/read_accounting.csv
 
-echo "NinjaMap completed."
+echo "Alignment completed."
 ls ${LOCAL}
 du -sh ${LOCAL}
 date
@@ -184,4 +194,4 @@ printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${LOCAL_
 echo "Live long and prosper" >> ${LOCAL_OUTPUT}/job.complete
 ############################ PEACE! ################################
 ## Sync output
-aws s3 sync --quiet "${LOCAL_OUTPUT}" "${S3OUTPUTPATH}"
+aws s3 sync --quiet "${LOCAL_OUTPUT}" "${S3OUTPUTPATH}" 

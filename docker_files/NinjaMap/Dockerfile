@@ -6,16 +6,9 @@ ENV PATH "/opt/conda/bin:$PATH"
 
 # Install dependencies
 RUN conda install -y scipy numpy pandas
-RUN conda install -c conda-forge -y awscli
+RUN conda install -c conda-forge -y awscli biopython
 RUN conda install -c bioconda -y bowtie2 samtools bedtools vcftools sambamba pysam bbmap
 RUN conda clean -ya
-
-# Install grinder for db indexing
-# RUN apt-get update && \
-#     apt-get install -y grinder && \
-#     apt-get clean && \
-#     apt-get purge && \
-#     rm -rf /var/lib/apt/lists/* /tmp/*
 
 RUN mkdir -p /mnt
 WORKDIR /mnt
