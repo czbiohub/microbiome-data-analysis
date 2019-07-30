@@ -140,6 +140,7 @@ else:
 abundance_output_file = prefix +'.ninjaMap.abundance.csv'
 stats_file = prefix +'.ninjaMap.read_stats.csv'
 vote_file = prefix +'.ninjaMap.votes.csv.gz'
+fraud_file = prefix +'.ninjaMap.fraud_votes.txt'
 strain_stats_file = prefix +'.ninjaMap.strain_stats.csv'
 logfile = prefix +'.ninjaMap.log.txt'
 
@@ -474,7 +475,7 @@ class Reads:
         for each object of this class, return True if cumulative votes > 1
         '''
         fraud = True
-        # not approx 1
+        # approx 1
         if (self.cum_vote < 1.001) and (self.cum_vote > 0.999):
             fraud = False
 
@@ -737,12 +738,13 @@ if len(read_objects.keys()) != Reads.reads_w_perfect_alignments:
     Reads.reads_w_perfect_alignments,
     len(read_objects.keys())
     )    
-    sys.exit()
+    sys.exit(1)
 
 ###############################################################################
 # Processing the reads that mapped exclusively to a single strain
 ###############################################################################
 votes = gzip.open(vote_file, 'wt')
+fraud = open(fraud_file, 'wt')
 # Header
 # votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
 votes.write("Read_Name,Strain_Name,cSingular_Vote,cEscrow_Vote,Num_Strains_Aligned,was_discarded,has_voted,is_singular,mate_has_perfect_aln\n")
@@ -781,6 +783,7 @@ for name, read in read_objects.items():
     
     if read.is_fraud():
         singular_fraud_alert = True
+        fraud.write(read.name+'\t'+str(read.cum_vote)+'\n')
         num_singular_fraud_reads += 1
 
 Reads.total_escrow_reads = len(escrow_read_objects.keys())
@@ -801,7 +804,7 @@ if Reads.reads_w_perfect_alignments != (Reads.total_escrow_reads + Reads.total_s
     (Reads.total_escrow_reads + Reads.total_singular_reads_in_pairs),
     Reads.total_singular_reads_in_pairs,
     Reads.total_escrow_reads)
-    sys.exit()
+    sys.exit(1)
 
 del read_objects
 ###############################################################################
@@ -852,7 +855,7 @@ for name, read in escrow_read_objects.items():
         if total_primary_wts > 0:
             Reads.total_escrow_reads_kept += 1
             # Spread 1 vote/read based on the singular weight of strains aligned to
-            for strain in read.mapped_strains.keys():
+            for strain in common_strains_list:
                 read_vote_value = 1 * strain.adj_primary_wt / total_primary_wts
                 strain.add_escrow_vote(read.unique_name, read.read_length, read_vote_value)
                 read.add_vote(read_vote_value)
@@ -861,18 +864,18 @@ for name, read in escrow_read_objects.items():
             Reads.total_escrow_reads_discarded += 1
             to_discard = True
 
-        # return to_discard
     voting_details = read.get_voting_details(common_strains_list)
     for voting_detail_sublist in voting_details:
         strain_name, singular_vote_count, escrow_vote_count, cumulative_vote = voting_detail_sublist
         votes.write(read.name + ',' + strain_name + ',' + str(singular_vote_count) + ',' + 
-                    str(escrow_vote_count) + ',' + str(to_discard) +','+ 
+                    str(escrow_vote_count) + ',' + str(len(common_strains_list)) + ',' + str(to_discard) +','+ 
                     str(read.has_voted)+','+str(read.in_singular_bin)+','+ str(read.mate_has_perfect_match)+'\n')
-        if read.is_fraud():
-            escrow_fraud_alert = True
-            num_fraud_reads += 1
-
+    if read.is_fraud():
+        escrow_fraud_alert = True
+        fraud.write(read.name+'\t'+str(read.cum_vote)+'\n')
+        num_fraud_reads += 1
 votes.close()
+fraud.close()
 
 del escrow_read_objects
 
@@ -893,7 +896,7 @@ if singular_fraud_alert or escrow_fraud_alert:
     logging.critical('[FATAL] There were signs of voter fraud. See the votes file (%s) for the complete picture.', vote_file)
     logging.critical("\tVoter fraud committed by " +str(num_singular_fraud_reads)+ " out of " +str(Reads.total_singular_reads_in_pairs)+ " singular reads in pairs")
     logging.critical("\tVoter fraud committed by " +str(num_fraud_reads)+ " out of " +str(Reads.total_escrow_reads)+ " escrow reads")
-    sys.exit("Voter Fraud Detected!")
+    sys.exit(1)
 
 ###############################################################################
 # Sanity Check
