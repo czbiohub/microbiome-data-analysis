@@ -1,4 +1,4 @@
-NAME=bowtie_accu_align
+NAME=fibo
 TAG:=$(shell /bin/date +%Y%m%d%H%M%S)
 REGISTRY=sunitjain/$(NAME)
 

@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# pylint: disable=no-member
+
 import argparse, os, pysam
 import numpy as np
 import pandas as pd
@@ -53,7 +56,7 @@ class tabulate_alignment_fragment:
         for alignment in bamfile.fetch(until_eof=True):
             if alignment.is_paired and alignment.is_read1 and alignment.is_proper_pair and ((alignment.is_reverse and not alignment.mate_is_reverse) or (not alignment.is_reverse and alignment.mate_is_reverse)):
                 ref = bamfile.get_reference_name(alignment.reference_id)
-                self.coverage.ix[ref.split('_')[0], self.sample_name] += float(abs(alignment.template_length))
+                self.coverage.loc[ref.split('_')[0], self.sample_name] += float(abs(alignment.template_length))
                 counter += 1
                 if counter % 100000 == 0:
                     print('.', end='')
@@ -185,7 +188,7 @@ class tabulate_basepair_coverage:
             core_num = 2
         else:
             core_num = int(core_num)
-        sorted_bamfile = bamfile_name.split('.bam')[0] + '.sortedByCoord.bam';
+        sorted_bamfile = bamfile_name.split('.bam')[0] + '.sortedByCoord.bam'
         pysam.sort("--threads",str(core_num),"-m","2G","-o",sorted_bamfile,bamfile_name)
         # The depth file is returned as one single string
         return pysam.depth(sorted_bamfile)
@@ -252,7 +255,7 @@ class tabulate_basepair_coverage:
         coverage_vector = [contig_name, str(contig_len)]
         for i in range(int(np.ceil(contig_len/window_size))):
             if i in grouped_coverage.index:
-                coverage_vector.append(str(grouped_coverage.ix[i, 'contig_depth']))
+                coverage_vector.append(str(grouped_coverage.iloc[i, 'contig_depth']))
             else:
                 coverage_vector.append('0')
         return coverage_vector
@@ -263,7 +266,7 @@ class tabulate_basepair_coverage:
         Write the variable alignment_depth to depth_file_name
         """
         with open(depth_file_name, 'w') as f:
-            t = f.write(alignment_depth)
+            f.write(alignment_depth)
 
 
     def output_one_contig_coverage(self, line, output_file):
@@ -275,7 +278,7 @@ class tabulate_basepair_coverage:
             print(','.join(line))
         else:
             with open(output_file,'a') as d:
-                t = d.write(','.join(line) + '\n')
+                d.write(','.join(line) + '\n')
 
 def DNA_count(ref, sample_name, uu, mm, mu, output):
     f = tabulate_alignment_fragment(ref, sample_name)
@@ -323,9 +326,9 @@ if __name__ == "__main__":
         p1 = Process(target=DNA_count, args=(A.reference_list_file, A.sample_name, A.unique_alignment_file, A.multiple_align_to_multiple, A.multiple_align_to_unique, A.tabulated_alignment_file))
         p1.start()
         p1.join()
-        p2 = Process(target=DNA_coverage, args=(A.ref_fasta, A.window_size, A.unique_alignment_file, A.multiple_align_to_unique, A.multiple_align_to_multiple))
-        p2.start()
-        p2.join()
+        # p2 = Process(target=DNA_coverage, args=(A.ref_fasta, A.window_size, A.unique_alignment_file, A.multiple_align_to_unique, A.multiple_align_to_multiple))
+        # p2.start()
+        # p2.join()
         print('Script completed')
 
     except ValueError as e:

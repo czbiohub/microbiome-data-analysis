@@ -1,13 +1,13 @@
-# Setup base image as dev
-FROM sunitjain/bowtie2:latest as dev
+# Setup base image
+FROM continuumio/miniconda3:4.5.12
 
 USER root:root
 ENV PATH "/opt/conda/bin:$PATH"
 
 # Install dependencies
-RUN conda install scipy numpy pandas awscli
-RUN conda install -c bioconda -y samtools bedtools vcftools pysam sambamba picard fastqc bwa bbmap
-RUN conda install openssl=1.0
+RUN conda install scipy numpy pandas
+RUN conda install -c conda-forge awscli
+RUN conda install -c bioconda -y bowtie2 samtools bedtools vcftools pysam bbmap
 
 RUN mkdir -p /mnt
 WORKDIR /mnt
@@ -17,7 +17,7 @@ COPY . .
 
 # Metadata
 LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
-      container.base.image="continuumio/bowtie2" \
+      container.base.image="continuumio/miniconda3:4.5.12" \
       software.name="accu_align" \
       software.description="Brian Yu's alignment pipeline" \
       software.website="" \
