@@ -6,11 +6,16 @@ set -o pipefail
 START_TIME=$SECONDS
 export PATH="/opt/conda/bin:${PATH}"
 
+# INPUTS
+# PREFIX="uniform10x"
+# S3INPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/20190720_00_NinjaIndex/${PREFIX}/setup
+# S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/20190720_00_NinjaIndex/${PREFIX}/index
+
+# PREFIX="uniform100x"
+# S3INPUTPATH="s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/20190731_00_NinjaIndex/${PREFIX}/setup"
+# S3OUTPUTPATH="s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/20190731_00_NinjaIndex/${PREFIX}/index"
+
 coreNum="${coreNum:-15}"
-
-S3INPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/20190720_00_NinjaIndex/uniform10x/setup
-S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/ninjaMap/20190720_00_NinjaIndex/uniform10x/index
-
 echo "${PATH}"
 LOCAL=$(pwd)
 scriptFolder="./scripts"
@@ -36,9 +41,9 @@ trap '{aws s3 sync "${LOCAL_OUTPUT}" "${S3OUTPUTPATH}";
 aws s3 sync --quiet "${S3INPUTPATH}" "${OUTPUTDIR}"
 
 python -u "${scriptFolder}/ninjaIndex.py" \
-    -bam "${OUTPUTDIR}/uniform10x.merged.bam" \
+    -bam "${OUTPUTDIR}/${PREFIX}.merged.bam" \
     -fastadir "${LOCAL_DB_PATH}" \
-    -prefix "${NINJA_OUTPUT}/uniform10x" | tee -a "${LOG_DIR}/uniform10x_ninjaIndex.binmap.log"
+    -prefix "${NINJA_OUTPUT}/${PREFIX}" | tee -a "${LOG_DIR}/${PREFIX}_ninjaIndex.binmap.log"
 
 ls "${LOCAL}"
 du -sh "${LOCAL}"
