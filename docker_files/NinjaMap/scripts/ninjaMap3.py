@@ -334,6 +334,14 @@ class Strains:
             
         if self.escrow_covered_bases > 0:
             escrow_depth = (self.escrow_covered_depth/self.escrow_covered_bases)
+
+        frac_escrow_reads = 'NA'
+        if Reads.total_escrow_reads > 0:
+            frac_escrow_reads = self.num_escrow_reads/Reads.total_escrow_reads
+
+        frac_singular_reads = 'NA'
+        if Reads.total_singular_reads > 0:
+            frac_singular_reads = self.num_singular_reads/Reads.total_singular_reads
         
         # Dataframe
         return pd.DataFrame(
@@ -348,13 +356,13 @@ class Strains:
                 'Total_Singular_Reads' : self.num_singular_reads,
                 'Total_Singular_Votes' : self.cum_primary_votes,
                 'Singular_Read_Vote_Ratio' : self.singular_vote_conversion_rate,
-                'Singular_Fraction_of_Singular_Reads' : self.num_singular_reads/Reads.total_singular_reads,
+                'Singular_Fraction_of_Singular_Reads' : frac_singular_reads,
                 'Singular_Coverage' : self.uniquely_covered_bases,
                 'Singular_Depth' : singular_depth,
                 'Total_Escrow_Reads' : self.num_escrow_reads,
                 'Total_Escrow_Votes' : self.cum_escrow_votes,
                 'Escrow_Read_Vote_Ratio' : self.escrow_vote_conversion_rate,
-                'Fraction_of_all_Escrow_Reads' : self.num_escrow_reads/Reads.total_escrow_reads,
+                'Fraction_of_all_Escrow_Reads' : frac_escrow_reads,
                 'Escrowed_Cov' : self.escrow_covered_bases,
                 'Escrowed_Depth' : escrow_depth
             }
