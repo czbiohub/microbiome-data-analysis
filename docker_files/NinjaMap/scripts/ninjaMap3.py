@@ -335,11 +335,11 @@ class Strains:
         if self.escrow_covered_bases > 0:
             escrow_depth = (self.escrow_covered_depth/self.escrow_covered_bases)
 
-        frac_escrow_reads = 'NA'
+        frac_escrow_reads = 'NaN'
         if Reads.total_escrow_reads > 0:
             frac_escrow_reads = self.num_escrow_reads/Reads.total_escrow_reads
 
-        frac_singular_reads = 'NA'
+        frac_singular_reads = 'NaN'
         if Reads.total_singular_reads > 0:
             frac_singular_reads = self.num_singular_reads/Reads.total_singular_reads
         
@@ -941,7 +941,6 @@ for name, strain in all_strain_obj.items():
     strain_stats_df = strain.compile_general_stats()
     if strain_stats_df is not None:
         stats_df = pd.DataFrame.add(stats_df, strain_stats_df, fill_value = 0)
-
     strain_abundance_df = strain.compile_by_abundance()
     if strain_abundance_df is not None:
         abundance_df = pd.DataFrame.add(abundance_df, strain_abundance_df, fill_value = 0)
