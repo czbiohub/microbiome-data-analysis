@@ -9,7 +9,17 @@ This repo is a frozen dockerized fork of the original repo:
 
 Currently, it supports functionality that is rather limited to my projects, but, additional support may be added at a later date depending on the interest.
 
-## MultiCodes.pl
+## Before Using Dockerfile
+
+The tool has been installed in `/mnt/FitnessBrowser`, so, in order to call the scripts, you'll need to provide the full path to the scipt, for example: `/mnt/FitnessBrowser/bin/MultiCodes.pl`.
+
+The default workdir for the container is `/data`. This is where you start once the container launches.
+
+## Packaged wrappers
+
+Alternatively, if you use AWS, feel free to use the `bash` script(s) to run specific jobs. If you can't find a wrapper associated with your use case, please feel free to submit an issue or a pull request.
+
+### MultiCodes.pl
 
 This script has been wrapped into `run_multiCodes.sh` and expects at least an S3 path to a compressed fastq (with the extension `.fastq.gz`) and an S3 output location. You may also provide additional values such as the `MIN_QUALITY`, `INDEX_DIR` and `INDEX_FILE`.
 

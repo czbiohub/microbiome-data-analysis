@@ -6,19 +6,23 @@ ENV PATH "/opt/conda/bin:$PATH"
 
 RUN conda install -c bioconda -y perl-bioperl
 RUN conda install -c conda-forge -y awscli
+RUN conda install -c r -y r-base 
 RUN conda clean -ya && \
     mkdir -p /mnt /data
+
+RUN R -e "install.packages(c('parallel'), dependencies=TRUE, repos='http://cran.rstudio.com/')"
 
 WORKDIR /mnt
 
 # Get BLAT
 RUN curl -O http://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/blat/blat && \
-    chmod +x blat
+    chmod +x blat && \
+    mv blat /usr/bin/
 
 # Get Repo
 COPY . .
 
-# Get FitnessBrowser from git
+# Get FitnessBrowser from git https://github.com/pflu-sbw25/FitnessBrowser
 # Branch: Master 
 # commit: 9c85d32a4f0b9baca7e27604d20cbbc0a45bce33 
 # dated: March 21, 2019

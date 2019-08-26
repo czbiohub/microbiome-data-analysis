@@ -8,6 +8,7 @@ coreNum=${coreNum:-4}
 export PATH="/opt/conda/bin:${PATH}"
 export MC_CORES=${coreNum}
 # S3INPUTPATH="s3://czb-seqbot/fastqs/190721_NB501938_0142_AHFFCYBGXB/Com2_0p1_Btmutpool_rep1_T12_S10_R1_001.fastq.gz"
+# INDEX_NAME=""
 # S3OUTPUTPATH="s3://czbiohub-microbiome/Sunit_Jain/BarSeq/FitnessBrowser/Com2_0p1_Btmutpool_rep1_T12_TEST"
 
 echo "${PATH}"
@@ -46,10 +47,11 @@ du -sh "${LOCAL}"
 
 zcat "${OUTPUTDIR}/${LOCAL_FASTQ}" |\
     perl "${SCRIPT_DIR}/MultiCodes.pl" \
-        -primers "${INDEX_FILE_LOC}" \
+        -bs3 \
+        -index "${INDEX_NAME}" \
         -minQuality "${MIN_QUALITY}" \
         -out "${FIBO_OUTPUT}/${PREFIX}" |\
-        tee -a "${LOG_DIR}/${PREFIX}.log"
+    tee -a "${LOG_DIR}/${PREFIX}.log"
 
 ls "${LOCAL}"
 du -sh "${LOCAL}"
