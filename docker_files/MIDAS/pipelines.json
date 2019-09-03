@@ -1,0 +1,22 @@
+{ 
+    "midas" : {
+        "memory" : 8000,
+        "image" : "sunitjain/midas",
+        "version" : "latest",
+        "queue" : "microbiome-highPriority",
+        "cpu" : 4,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_midas.sh"
+    },
+    "ninjamap" : {
+        "memory" : 64000,
+        "image" : "sunitjain/ninjamap",
+        "version" : "latest",
+        "queue" : "microbiome-highPriority",
+        "cpu" : 8,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./ninjaMap_index.sh"
+    }
+}
