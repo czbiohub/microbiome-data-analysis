@@ -35,7 +35,7 @@ p.add_argument('-c','--config', dest='config_file', action='store', type=str, de
 
 #Pick one
 p.add_argument('-s','--seed', dest='seedfile', action='store', type=str,
-                help = '(preferred) tab-delimited file containing 3 columns, named: "sampleName","R1" and "R2"')
+                help = '(preferred) comma-delimited file containing 3 columns, named: "sampleName","R1" and "R2"')
 p.add_argument('-i','--s3_input', dest='in_s3path', action='store', type=str,
                 help = 'S3 Path to paired fastq files to be used as inputs in the pipeline')
 
@@ -119,6 +119,7 @@ def submit_job (name, fwd, rev, s3output = out_s3path,
     memoryPerCore = f"{int(job_memory/(job_cpu * 1000))}G"
     s3output_path = f"{s3output}/{name}"
     complete = fs.exists(f'{s3output_path}/job.complete')
+
     if not complete:
         execute_cmd = f'export coreNum={job_cpu};export memoryPerCore={memoryPerCore};export fastq1={fwd};export fastq2={rev};export S3OUTPUTPATH={s3output_path}; {job_script}' 
         aegea_cmd = f'aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command=\'{execute_cmd}\''
@@ -127,7 +128,13 @@ def submit_job (name, fwd, rev, s3output = out_s3path,
 
 seed_df = pd.DataFrame()
 if arguments.seedfile:
-    seed_df = pd.read_csv(arguments.seedfile)
+    try:
+        # Comma sep
+        seed_df = pd.read_csv(arguments.seedfile)
+    else:
+        # Tab sep
+        seed_df = pd.read_csv(arguments.seedfile, sep = "\t")
+
 elif arguments.in_s3path:
     in_s3path = arguments.in_s3path.rstrip("/")
     df = pd.DataFrame()
