@@ -131,7 +131,7 @@ if arguments.seedfile:
     try:
         # Comma sep
         seed_df = pd.read_csv(arguments.seedfile)
-    else:
+    except:
         # Tab sep
         seed_df = pd.read_csv(arguments.seedfile, sep = "\t")
 
