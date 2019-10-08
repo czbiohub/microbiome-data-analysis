@@ -1,13 +1,13 @@
 # Base Image
 FROM sunitjain/bowtie2:latest
 
-USER root
+USER root:root
 
 # Install dependencies
-RUN conda install numpy
-RUN conda install -c bioconda -y samtools pysam bbmap
+RUN conda install numpy unzip
 RUN conda install -c conda-forge -y awscli
-RUN conda install openssl=1.0
+RUN conda install -c bioconda -y samtools pysam bbmap
+RUN conda clean -ya
 
 RUN mkdir -p /mnt
 
@@ -31,14 +31,9 @@ WORKDIR /mnt
 COPY . .
 RUN chmod -R +rx ./
 
-# Set environment variables
-# ENV PYTHONPATH "/mnt/bin/iggsearch"
-# ENV PATH "/mnt/bin:/opt/conda/bin:${PATH}"
-# ENV IGG_DB "/mnt/databases/iggdb_v1.0.0_gut"
-
 # Metadata
 LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
-      container.base.image="sunitjain/bowtie2:20190227" \
+      container.base.image="sunitjain/bowtie2:latest" \
       software.name="IGGsearch" \
       software.description="Metagenomic species profiling with enhanced coverage of the human gut microbiome" \
       software.website="https://github.com/snayfach/IGGsearch" \

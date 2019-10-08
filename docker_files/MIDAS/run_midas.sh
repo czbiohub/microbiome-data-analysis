@@ -14,7 +14,7 @@
 #   Required:
 #       coreNum=4
 #       fastq1="s3://..."
-#       s3OutputPath="s3://..."
+#       S3OUTPUTPATH="s3://..."
 #
 #   Optional (can be left blank):
 #       fastq2="s3://..." OR ""
@@ -28,7 +28,7 @@
 #     --command="export coreNum=16; \
 #     export fastq1=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R1_001.fastq.gz; \
 #     export fastq2=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R2_001.fastq.gz; \
-#     export s3OutputPath=s3://czbiohub-brianyu/Sunit_Jain/20190304_Midas_Test/Dorea-longicatena-DSM-13814/; \
+#     export S3OUTPUTPATH=s3://czbiohub-brianyu/Sunit_Jain/20190304_Midas_Test/Dorea-longicatena-DSM-13814/; \
 #     export subsetReads=''; \
 #     export hardTrim=''; \
 #     ./run_midas.sh"
@@ -57,15 +57,15 @@ LOG_DIR="${LOCAL_OUTPUT}/Logs"
 defaultDB="s3://czbiohub-microbiome/ReferenceDBs/Midas/v1.2/midas_db_v1.2.tar.gz"
 
 # remove trailing '/'
-s3OutputPath=${s3OutputPath%/}
-SAMPLE_NAME=$(basename ${s3OutputPath})
+S3OUTPUTPATH=${S3OUTPUTPATH%/}
+SAMPLE_NAME=$(basename ${S3OUTPUTPATH})
 SPECIES_OUT="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
 GENES_OUT="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
 
 mkdir -p ${OUTPUTDIR} ${RAW_FASTQ} ${QC_FASTQ} ${SPECIES_OUT} ${GENES_OUT} ${LOG_DIR}
 
 trap '{ 
-    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/;
+    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/;
     rm -rf ${OUTPUTDIR} ; 
     exit 255; 
     }' 1 
@@ -147,7 +147,7 @@ MIDAS_GENES="run_midas.py genes ${GENES_OUT} ${MIDAS_GENES_PARAMS} | tee -a ${LO
 
 if eval "${BBDUK}"; then
     echo "[$(date)] BBDUK complete."
-    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/
+    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
 else
     echo "[$(date)] BBDUK failed."
     exit 1;
@@ -156,8 +156,8 @@ fi
 ####################### MIDAS - Species ############################
 
 if eval "${MIDAS_SPECIES}"; then
-    echo "[$(date)] MIDAS Species complete. Syncing output to ${s3OutputPath}"
-    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/
+    echo "[$(date)] MIDAS Species complete. Syncing output to ${S3OUTPUTPATH}"
+    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
 else
     echo "[$(date)] MIDAS Species failed."
     exit 1;
@@ -166,8 +166,8 @@ fi
 ######################## MIDAS - Genes #############################
 
 if eval "${MIDAS_GENES}"; then
-    echo "[$(date)] MIDAS Genes complete. Syncing output to ${s3OutputPath}"
-    aws s3 sync ${LOCAL_OUTPUT}/ ${s3OutputPath}/
+    echo "[$(date)] MIDAS Genes complete. Syncing output to ${S3OUTPUTPATH}"
+    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
 else
     echo "[$(date)] MIDAS Genes failed."
     exit 1;
@@ -179,4 +179,4 @@ hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-h
 printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${OUTPUTDIR}/job.complete
 echo "Live long and prosper" >> ${OUTPUTDIR}/job.complete
 ############################ PEACE! ################################
-aws s3 cp ${OUTPUTDIR}/job.complete ${s3OutputPath}/
+aws s3 cp ${OUTPUTDIR}/job.complete ${S3OUTPUTPATH}/

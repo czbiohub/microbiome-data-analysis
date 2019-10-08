@@ -1,4 +1,4 @@
-NAME=ninjamap
+NAME=breseq
 TAG:=$(shell /bin/date +%Y%m%d%H%M%S)
 REGISTRY=sunitjain/$(NAME)
 
@@ -13,6 +13,6 @@ push:
 	docker image push $(REGISTRY):$(TAG)
 	docker image push $(REGISTRY):latest
 	echo "sunitjain/$(NAME):$(TAG)" > LATEST
-	
+
 run:
 	docker container run --rm $(NAME):latest

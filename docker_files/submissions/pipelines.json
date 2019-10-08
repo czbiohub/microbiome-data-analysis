@@ -1,0 +1,44 @@
+{ 
+    "midas" : {
+        "memory" : 8000,
+        "image" : "sunitjain/midas",
+        "version" : "latest",
+        "queue" : "microbiome-lowPriority",
+        "cpu" : 4,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_midas.sh",
+        "retries" : 5
+    },
+    "iggsearch" : {
+        "memory" : 16000,
+        "image" : "sunitjain/iggsearch",
+        "version" : "latest",
+        "queue" : "microbiome-lowPriority",
+        "cpu" : 8,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_iggsearch.sh",
+        "retries" : 5
+    },
+    "ninjamap" : {
+        "memory" : 64000,
+        "image" : "sunitjain/ninjamap",
+        "version" : "latest",
+        "queue" : "microbiome-highPriority",
+        "cpu" : 8,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./ninjaMap_index.sh"
+    },
+    "nm_mates" : {
+        "memory" : 64000,
+        "image" : "sunitjain/ninjamap",
+        "version" : "latest",
+        "queue" : "microbiome-highPriority",
+        "cpu" : 8,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./ninjaMap_mate.sh"
+    }
+}

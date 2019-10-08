@@ -7,47 +7,35 @@ set -u
 set -o pipefail
 
 START_TIME=$SECONDS
+export PATH="/opt/conda/bin:${PATH}"
 
 LOCAL=$(pwd)
 coreNum=${coreNum:-15};
-# S3_IGGSEARCH_CODEBASE="s3://czbiohub-microbiome/ReferenceDBs/IGGdb/IGGsearch-master.zip"
-# IGGSEARCH_CODEBASE_DIR=$(basename ${S3_IGGSEARCH_CODEBASE} .zip)
-# IGG_CODE_PATH=${LOCAL}/src
-IGG_DB_PATH=${LOCAL}/databases
-DEFAULT_REF_DB="s3://czbiohub-microbiome/ReferenceDBs/IGGdb/gut_only/v1.0.0/iggdb_v1.0.0_gut.tar.gz"
-S3DBPATH=${S3DBPATH:-$DEFAULT_REF_DB}
-LOCAL_DBNAME=$(basename ${S3DBPATH} .tar.gz)
+DUP_REMOVAL=${DUP_REMOVAL:-false}
+LOCAL_DB_PATH=${LOCAL}/databases
 
-# sampleName=Dorea-longicatena-DSM-13814
+# S3DBPATH=s3://czbiohub-microbiome/Synthetic_Community/Genome_References/ncbi_fasta/Dorea-longicatena-DSM-13814-GCF_000154065.1_ASM15406v1.fna
 # fastq1=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R1_001.fastq.gz
 # fastq2=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R2_001.fastq.gz
-# S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/IGGsearch_Test/Dorea-longicatena-DSM-13814
-
-# Get Code
-# wget -q "https://github.com/snayfach/IGGsearch/archive/v1.0.0.tar.gz"
-
-source setup.sh
-
-command -v run_iggsearch.py
-run_iggsearch.py search -h
-
-# Get database
-mkdir -p "${IGG_DB_PATH}"
-cd "${IGG_DB_PATH}" || exit
-aws s3 cp --quiet ${S3DBPATH} .
-tar xzf "${LOCAL_DBNAME}.tar.gz" --directory "${IGG_DB_PATH}"
-cd "${LOCAL}" || exit
+# S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/Bowtie2_Test/Dorea-longicatena-DSM-13814
 
 # Setup directory structure
 OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
 QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
+TMP_BWT_OUTPUT="${OUTPUTDIR}/bowtie2"
 LOCAL_OUTPUT="${OUTPUTDIR}/Sync"
+LOG_DIR="${LOCAL_OUTPUT}/Logs"
+BWT_OUTPUT="${LOCAL_OUTPUT}/bowtie2"
 S3OUTPUTPATH=${S3OUTPUTPATH%/}
+S3DBPATH=${S3DBPATH%/*}
 SAMPLE_NAME=$(basename ${S3OUTPUTPATH})
 
-mkdir -p "${OUTPUTDIR}" "${RAW_FASTQ}" "${QC_FASTQ}" "${LOCAL_OUTPUT}"
+mkdir -p "${OUTPUTDIR}" "${LOCAL_OUTPUT}" "${LOG_DIR}" "${RAW_FASTQ}" "${QC_FASTQ}"
+mkdir -p "${LOCAL_DB_PATH}" "${BWT_OUTPUT}"
 trap '{ rm -rf ${OUTPUTDIR} ; exit 255; }' 1 
+
+hash_kmer=${hash_kmer:-51}
 
 # Copy fastq.gz files from S3, only 2 files per sample
 aws s3 cp --quiet ${fastq1} "${RAW_FASTQ}/read1.fastq.gz"
@@ -71,22 +59,23 @@ bbduk.sh -Xmx16g tbo -eoom hdist=1 qtrim=rl ktrim=r \
     mink="${min_kmer_value}" \
     trimq="${trimQuality}" \
     minlen="${minLength}" \
-    refstats="${LOCAL_OUTPUT}/BBDuk/adapter_trimming_stats_per_ref.txt"
+    refstats="${LOCAL_OUTPUT}/BBDuk/adapter_trimming_stats_per_ref.txt" |\
+    tee -a ${LOG_DIR}/bbduk.log
 
-run_iggsearch.py search \
-    --m1 "${QC_FASTQ}/read1_trimmed.fastq.gz" \
-    --m2 "${QC_FASTQ}/read2_trimmed.fastq.gz" \
-    --db_dir "${IGG_DB_PATH}/${LOCAL_DBNAME}" \
-    --outdir "${LOCAL_OUTPUT}/${SAMPLE_NAME}" \
-    --threads "${coreNum}"
+# Run BreSeq
+FASTQ_FILES # space delimited list of all fastq files from a directory
+breseq -p \
+    --brief-html-output \
+    --polymorphism-reject-indel-homopolymer-length 0 \
+    --polymorphism-reject-surrounding-homopolymer-length 0 \
+    --polymorphism-score-cutoff 2 \
+    --polymorphism-minimum-coverage-each-strand 0 \
+    -o data/breseq_output/${sample_name} \
+    -r data/lenski_reference/REL606.6.gbk ${FASTQ_FILES} \
+    > data/breseq_output/${sample_name}.out \
+    2> data/breseq_output/${sample_name}.err
 
-# # To roll up counts to other taxonomic ranks
-# run_iggsearch.py reformat \
-#     --indir "${LOCAL_OUTPUT}/IGG_search" \
-#     --outdir "${LOCAL_OUTPUT}/IGG_reformat" \
-#     --db_dir "${IGG_DB_PATH}/${LOCAL_DBNAME}" \
-#     --taxdb gtdb \
-#     --taxrank family
+
 
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
@@ -94,5 +83,6 @@ hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-h
 printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${LOCAL_OUTPUT}/job.complete
 echo "Live long and prosper" >> ${LOCAL_OUTPUT}/job.complete
 ############################ PEACE! ################################
-aws s3 sync --quiet "${LOCAL_OUTPUT}" ${S3OUTPUTPATH}
+## Sync output
+aws s3 sync "${LOCAL_OUTPUT}" "${S3OUTPUTPATH}"
 # rm -rf "${OUTPUTDIR}"
