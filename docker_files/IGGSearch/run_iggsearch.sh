@@ -4,28 +4,32 @@
 
 set -e
 set -u
+set -o pipefail
 
 START_TIME=$SECONDS
 
 LOCAL=$(pwd)
 coreNum=${coreNum:-15};
-IGG_CODE_PATH=${LOCAL}/src
+# S3_IGGSEARCH_CODEBASE="s3://czbiohub-microbiome/ReferenceDBs/IGGdb/IGGsearch-master.zip"
+# IGGSEARCH_CODEBASE_DIR=$(basename ${S3_IGGSEARCH_CODEBASE} .zip)
+# IGG_CODE_PATH=${LOCAL}/src
 IGG_DB_PATH=${LOCAL}/databases
 DEFAULT_REF_DB="s3://czbiohub-microbiome/ReferenceDBs/IGGdb/gut_only/v1.0.0/iggdb_v1.0.0_gut.tar.gz"
 S3DBPATH=${S3DBPATH:-$DEFAULT_REF_DB}
 LOCAL_DBNAME=$(basename ${S3DBPATH} .tar.gz)
+
 # sampleName=Dorea-longicatena-DSM-13814
 # fastq1=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R1_001.fastq.gz
 # fastq2=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R2_001.fastq.gz
-# s3OutputPath=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/IGGsearch_Test/Dorea-longicatena-DSM-13814
+# S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/IGGsearch_Test/Dorea-longicatena-DSM-13814
 
 # Get Code
-wget -q "https://github.com/snayfach/IGGsearch/archive/v1.0.0.tar.gz"
-mkdir -p "${IGG_CODE_PATH}"
-tar xzf v1.0.0.tar.gz --directory "${IGG_CODE_PATH}"
+# wget -q "https://github.com/snayfach/IGGsearch/archive/v1.0.0.tar.gz"
 
-export PYTHONPATH="${IGG_CODE_PATH}/IGGsearch-1.0.0/iggsearch"
-export PATH="${IGG_CODE_PATH}/IGGsearch-1.0.0:/opt/conda/bin:${PATH}"
+source setup.sh
+
+command -v run_iggsearch.py
+run_iggsearch.py search -h
 
 # Get database
 mkdir -p "${IGG_DB_PATH}"
@@ -39,8 +43,8 @@ OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
 QC_FASTQ="${OUTPUTDIR}/trimmed_fastq"
 LOCAL_OUTPUT="${OUTPUTDIR}/Sync"
-s3OutputPath=${s3OutputPath%/}
-SAMPLE_NAME=$(basename ${s3OutputPath})
+S3OUTPUTPATH=${S3OUTPUTPATH%/}
+SAMPLE_NAME=$(basename ${S3OUTPUTPATH})
 
 mkdir -p "${OUTPUTDIR}" "${RAW_FASTQ}" "${QC_FASTQ}" "${LOCAL_OUTPUT}"
 trap '{ rm -rf ${OUTPUTDIR} ; exit 255; }' 1 
@@ -83,11 +87,12 @@ run_iggsearch.py search \
 #     --db_dir "${IGG_DB_PATH}/${LOCAL_DBNAME}" \
 #     --taxdb gtdb \
 #     --taxrank family
+
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
 hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
 printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${LOCAL_OUTPUT}/job.complete
 echo "Live long and prosper" >> ${LOCAL_OUTPUT}/job.complete
 ############################ PEACE! ################################
-aws s3 sync --quiet "${LOCAL_OUTPUT}" ${s3OutputPath}
+aws s3 sync --quiet "${LOCAL_OUTPUT}" ${S3OUTPUTPATH}
 # rm -rf "${OUTPUTDIR}"
