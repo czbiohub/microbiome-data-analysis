@@ -12,7 +12,7 @@ IGG_CODE_PATH=${LOCAL}/src
 aws s3 cp ${S3_IGGSEARCH_CODEBASE} "${IGG_CODE_PATH}"/
 
 cd "${IGG_CODE_PATH}" && \
-    unzip "${IGGSEARCH_CODEBASE_DIR}.zip" &&
+    /opt/conda/bin/unzip "${IGGSEARCH_CODEBASE_DIR}.zip" &&
     rm "${IGGSEARCH_CODEBASE_DIR}.zip" && \
     cd "${LOCAL}"
 
