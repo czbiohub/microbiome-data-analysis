@@ -1,5 +1,5 @@
 # Base Image. Miniconda is build on ubuntu 16.04LTS
-FROM continuumio/miniconda:4.5.12
+FROM continuumio/miniconda:4.7.12
 
 ENV PATH "/opt/conda/bin:${PATH}"
 
@@ -19,7 +19,7 @@ RUN conda install openssl=1.0
 
 # Metadata
 LABEL container.maintainer="Sunit Jain <sunit.jain@czbiohub.org>" \
-      container.base.image="continuumio/miniconda:4.5.12" \
+      container.base.image="continuumio/miniconda:4.7.12" \
       software.name="MIDAS" \
       software.description="An integrated pipeline for estimating strain-level genomic variation from metagenomic data" \
       software.website="https://github.com/snayfach/MIDAS" \

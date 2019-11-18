@@ -6,7 +6,7 @@
 #
 # Requirements
 #   vcpus: 4
-#   memory: 20GB
+#   memory: 8GB
 #   volume:
 #        default DB: 36GB
 #
@@ -20,6 +20,8 @@
 #       fastq2="s3://..." OR ""
 #       hardTrim=80 OR ""
 #       subsetReads=4000000 OR ""
+#       mapid=94 OR "" (applicable to Midas SNP only)
+#       aln_cov=0.75 OR "" (applicable to Midas SNP only)
 #       s3path2db="s3://..." OR empty -> DEFAULT: "s3://czbiohub-brianyu/Synthetic_Community/Genome_References/MIDAS/1.2/midas_db_v1.2.tar.gz"
 #
 #   Sample Batch Submission:
@@ -59,16 +61,37 @@ defaultDB="s3://czbiohub-microbiome/ReferenceDBs/Midas/v1.2/midas_db_v1.2.tar.gz
 # remove trailing '/'
 S3OUTPUTPATH=${S3OUTPUTPATH%/}
 SAMPLE_NAME=$(basename ${S3OUTPUTPATH})
-SPECIES_OUT="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
-GENES_OUT="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
+OUTDIR_BASE="${LOCAL_OUTPUT}/midas/${SAMPLE_NAME}"
+SPECIES_OUT="${OUTDIR_BASE}"
+GENES_OUT="${OUTDIR_BASE}"
+SNP_OUT="${OUTDIR_BASE}"
 
-mkdir -p ${OUTPUTDIR} ${RAW_FASTQ} ${QC_FASTQ} ${SPECIES_OUT} ${GENES_OUT} ${LOG_DIR}
+mkdir -p ${OUTPUTDIR} ${RAW_FASTQ} ${QC_FASTQ} ${OUTDIR_BASE} ${LOG_DIR}
 
 trap '{ 
     aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/;
     rm -rf ${OUTPUTDIR} ; 
     exit 255; 
     }' 1 
+
+exit_handler () {
+    # accepts 2 variables. 1) Exit status 2) Message
+    local EXIT_STATUS=$1
+    local MESSAGE="${2}"
+    DURATION=$((SECONDS - START_TIME))
+    hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
+    local STATUS_FILE="${OUTPUTDIR}/job.complete"
+    if [ "${EXIT_STATUS}" -ne "0" ]; then
+        STATUS_FILE="${OUTPUTDIR}/job.failed"
+    fi
+
+    echo "${MESSAGE}" > "${STATUS_FILE}"
+    printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs >> "${STATUS_FILE}"
+    echo "Live long and prosper" >> "${STATUS_FILE}"
+    ############################ PEACE! ################################
+    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
+    exit ${EXIT_STATUS}
+}
 
 ############################ DATABASE ##############################
 
@@ -94,9 +117,10 @@ minLength=${minLength:-50}
 kmer_value=${kmer_value:-23}
 min_kmer_value=${min_kmer_value:-11}
 
-## Species
+## Basic Params
 MIDAS_SPECIES_PARAMS="-t ${coreNum} -d ${localPath2db} --remove_temp"
 MIDAS_GENES_PARAMS=${MIDAS_SPECIES_PARAMS}
+MIDAS_SNP_PARAMS=${MIDAS_SPECIES_PARAMS}
 
 # Use bbduk to trim reads, -eoom exits when out of memory
 BBDUK_PARAMS="ref=adapters ktrim=r k=${kmer_value} mink=${min_kmer_value} hdist=1 tbo qtrim=rl trimq=${trimQuality} minlen=${minLength}"
@@ -108,11 +132,12 @@ if [[ -n ${fastq1} ]]; then
     BBDUK_PARAMS="${BBDUK_PARAMS} in1=${RAW_FASTQ}/${FASTQ1_FILENAME} out1=${QC_FASTQ}/${FASTQ1_FILENAME}"
     MIDAS_SPECIES_PARAMS="${MIDAS_SPECIES_PARAMS} -1 ${QC_FASTQ}/${FASTQ1_FILENAME}"
     MIDAS_GENES_PARAMS=${MIDAS_SPECIES_PARAMS}
+    MIDAS_SNP_PARAMS=${MIDAS_SPECIES_PARAMS}
     # Download
     aws s3 cp ${fastq1} ${RAW_FASTQ}/
     gunzip ${RAW_FASTQ}/${FASTQ1_FILENAME}.gz
 else
-    echo "[FATAL] Missing fastq file."
+    exit_handler 1 "[FATAL] Missing fastq file."
 fi
 
 ### Paired
@@ -122,6 +147,7 @@ if [[ -n ${fastq2:-} ]]; then
     BBDUK_PARAMS="${BBDUK_PARAMS} in2=${RAW_FASTQ}/${FASTQ2_FILENAME} out2=${QC_FASTQ}/${FASTQ2_FILENAME}"
     MIDAS_SPECIES_PARAMS="${MIDAS_SPECIES_PARAMS} -2 ${QC_FASTQ}/${FASTQ2_FILENAME}"
     MIDAS_GENES_PARAMS=${MIDAS_SPECIES_PARAMS}
+    MIDAS_SNP_PARAMS=${MIDAS_SPECIES_PARAMS}
     # Download
     aws s3 cp ${fastq2} ${RAW_FASTQ}/
     gunzip ${RAW_FASTQ}/${FASTQ2_FILENAME}.gz
@@ -137,11 +163,21 @@ if [[ -n ${subsetReads:-} ]]; then
     MIDAS_SPECIES_PARAMS="${MIDAS_SPECIES_PARAMS} -n ${subsetReads}"
 fi
 
+### Alignment Tuning for Midas SNP
+if [[ -n ${mapid:-} ]]; then
+    MIDAS_SNP_PARAMS="${MIDAS_SNP_PARAMS} --mapid ${mapid}"
+fi
+
+if [[ -n ${aln_cov:-} ]]; then
+    MIDAS_SNP_PARAMS="${MIDAS_SNP_PARAMS} --aln_cov ${aln_cov}"
+fi
+
 ########################### EXECUTION ##############################
 
 BBDUK="bbduk.sh -Xmx16g -eoom ${BBDUK_PARAMS} | tee -a ${LOG_DIR}/bbduk.log.txt"
 MIDAS_SPECIES="run_midas.py species ${SPECIES_OUT} ${MIDAS_SPECIES_PARAMS} | tee -a ${LOG_DIR}/midas_species.log.txt"
 MIDAS_GENES="run_midas.py genes ${GENES_OUT} ${MIDAS_GENES_PARAMS} | tee -a ${LOG_DIR}/midas_genes.log.txt"
+MIDAS_SNP="run_midas.py snps ${SNP_OUT} ${MIDAS_SNP_PARAMS} | tee -a ${LOG_DIR}/midas_snp.log.txt"
 
 ############################# BBDUK ################################
 
@@ -149,34 +185,35 @@ if eval "${BBDUK}"; then
     echo "[$(date)] BBDUK complete."
     aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
 else
-    echo "[$(date)] BBDUK failed."
-    exit 1;
+    exit_handler 1 "[FATAL] BBDUK failed."
 fi
 
 ####################### MIDAS - Species ############################
 
 if eval "${MIDAS_SPECIES}"; then
-    echo "[$(date)] MIDAS Species complete. Syncing output to ${S3OUTPUTPATH}"
+    echo "[$(date)] MIDAS Species complete. Syncing output to ${S3OUTPUTPATH}" | tee -a ${LOG_DIR}/midas_species.log.txt
     aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
 else
-    echo "[$(date)] MIDAS Species failed."
-    exit 1;
+    exit_handler 1 "[FATAL] MIDAS Species failed."
 fi
 
 ######################## MIDAS - Genes #############################
 
 if eval "${MIDAS_GENES}"; then
-    echo "[$(date)] MIDAS Genes complete. Syncing output to ${S3OUTPUTPATH}"
+    echo "[$(date)] MIDAS Genes complete. Syncing output to ${S3OUTPUTPATH}" | tee -a ${LOG_DIR}/midas_genes.log.txt
     aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
 else
-    echo "[$(date)] MIDAS Genes failed."
-    exit 1;
+    exit_handler 1 "[FATAL] MIDAS Genes failed."
+fi
+
+######################## MIDAS - SNPs #############################
+
+if eval "${MIDAS_SNP}"; then
+    echo "[$(date)] MIDAS SNP complete. Syncing output to ${S3OUTPUTPATH}" | tee -a ${LOG_DIR}/midas_snps.log.txt
+    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
+else
+    exit_handler 1 "[FATAL] MIDAS SNPs failed."
 fi
 
 ######################### HOUSEKEEPING #############################
-DURATION=$((SECONDS - START_TIME))
-hrs=$(( DURATION/3600 )); mins=$(( (DURATION-hrs*3600)/60)); secs=$(( DURATION-hrs*3600-mins*60 ))
-printf 'This AWSome pipeline took: %02d:%02d:%02d\n' $hrs $mins $secs > ${OUTPUTDIR}/job.complete
-echo "Live long and prosper" >> ${OUTPUTDIR}/job.complete
-############################ PEACE! ################################
-aws s3 cp ${OUTPUTDIR}/job.complete ${S3OUTPUTPATH}/
+exit_handler 0 "Success!"
