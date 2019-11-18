@@ -140,6 +140,7 @@ elif arguments.in_s3path:
     df = pd.DataFrame()
     df["FilePaths"] = fs.glob(in_s3path + '/*fastq.gz')
     df["sampleName"] = df["FilePaths"].str.extract(r'([a-zA-Z0-9_\-\.]+)_S\d+_R[12]_\d+\.fastq\.gz')
+    # df["sampleName"] = df["sampleName"].map(lambda x: x.rstrip(r'[^a-zA-Z0-9]+'))
     df["Orientation"] = df["FilePaths"].str.extract(r'[a-zA-Z0-9_\-\.]+_S\d+_(R[12])_\d+\.fastq\.gz')
     df["FilePaths"] = df["FilePaths"].apply(lambda x: 's3://' + x)
 
