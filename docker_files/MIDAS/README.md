@@ -10,7 +10,7 @@ size of default DB: 36GB
 
 ## Expected Variables
 
-  Required:
+### Required
 
 ```{bash}
 coreNum=4
@@ -27,6 +27,16 @@ subsetReads=4000000 OR ""
 mapid=94 OR "" (applicable to Midas SNP only)
 aln_cov=0.75 OR "" (applicable to Midas SNP only)
 s3path2db="s3://PATH/TO/MIDAS_DB/TARBALL" OR empty -> DEFAULT: "s3://czbiohub-brianyu/Synthetic_Community/Genome_References/MIDAS/1.2/midas_db_v1.2.tar.gz"
+```
+
+### Additional options
+
+#### Skipping Fastq QC
+
+To skip BBDuk QC and directly use input fastqs as inputs for Midas add the following statement to the commands flag. ***Note** that this option is not yet supported by the submission script*
+
+```{bash}
+export skip_qc=true;
 ```
 
 ## Sample Batch Submission
@@ -47,7 +57,7 @@ export aln_cov=''; \
 
 ## Bulk Submissions
 
-Use the `microbiome-data-analysis/docker_files/submissions/create_submission_commands.py` script along the `pipelines.json` file to generate a list of aegea submission commands based on either a `seed file` or an input `S3path`.
+Use the [create_submission_commands.py](https://github.com/czbiohub/microbiome-data-analysis/blob/master/docker_files/submissions/create_submission_commands.py) script along the [pipelines.json](https://github.com/czbiohub/microbiome-data-analysis/blob/master/docker_files/submissions/pipelines.json) file to generate a list of aegea submission commands based on either a `seed file` or an input `S3path`.
 
 To execute the generated list of commands, try the following:
 

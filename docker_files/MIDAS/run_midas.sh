@@ -58,6 +58,10 @@ QC_FASTQ="${LOCAL_OUTPUT}/trimmed_fastq"
 LOG_DIR="${LOCAL_OUTPUT}/Logs"
 defaultDB="s3://czbiohub-microbiome/ReferenceDBs/Midas/v1.2/midas_db_v1.2.tar.gz"
 
+if [ "${skip_qc:-}" = true ] ; then
+    RAW_FASTQ="${QC_FASTQ}"
+fi
+
 # remove trailing '/'
 S3OUTPUTPATH=${S3OUTPUTPATH%/}
 SAMPLE_NAME=$(basename ${S3OUTPUTPATH})
@@ -135,7 +139,9 @@ if [[ -n ${fastq1} ]]; then
     MIDAS_SNP_PARAMS=${MIDAS_SPECIES_PARAMS}
     # Download
     aws s3 cp ${fastq1} ${RAW_FASTQ}/
-    gunzip ${RAW_FASTQ}/${FASTQ1_FILENAME}.gz
+    if [[ -f ${RAW_FASTQ}/${FASTQ1_FILENAME}.gz ]]; then
+        gunzip ${RAW_FASTQ}/${FASTQ1_FILENAME}.gz
+    fi
 else
     exit_handler 1 "[FATAL] Missing fastq file."
 fi
@@ -150,7 +156,9 @@ if [[ -n ${fastq2:-} ]]; then
     MIDAS_SNP_PARAMS=${MIDAS_SPECIES_PARAMS}
     # Download
     aws s3 cp ${fastq2} ${RAW_FASTQ}/
-    gunzip ${RAW_FASTQ}/${FASTQ2_FILENAME}.gz
+    if [[ -f ${RAW_FASTQ}/${FASTQ2_FILENAME}.gz ]]; then
+        gunzip ${RAW_FASTQ}/${FASTQ2_FILENAME}.gz
+    fi
 fi
 
 ### Hard Trimming
@@ -181,11 +189,15 @@ MIDAS_SNP="run_midas.py snps ${SNP_OUT} ${MIDAS_SNP_PARAMS} | tee -a ${LOG_DIR}/
 
 ############################# BBDUK ################################
 
-if eval "${BBDUK}"; then
-    echo "[$(date)] BBDUK complete."
-    aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
+if [ "${skip_qc:-}" = true ] ; then
+    echo "[$(date)] Skipping BBDuk QC ..."
 else
-    exit_handler 1 "[FATAL] BBDUK failed."
+    if eval "${BBDUK}"; then
+        echo "[$(date)] BBDUK complete."
+        aws s3 sync ${LOCAL_OUTPUT}/ ${S3OUTPUTPATH}/
+    else
+        exit_handler 1 "[FATAL] BBDUK failed."
+    fi
 fi
 
 ####################### MIDAS - Species ############################
