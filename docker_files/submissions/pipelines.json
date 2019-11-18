@@ -2,7 +2,7 @@
     "midas" : {
         "memory" : 8000,
         "image" : "sunitjain/midas",
-        "version" : "20191114152634",
+        "version" : "20191118141332",
         "queue" : "microbiome-lowPriority",
         "cpu" : 4,
         "storage" : 500,
