@@ -46,6 +46,8 @@ p.add_argument('--image', dest='image_name', action='store', type=str)
 p.add_argument('--image_version', dest='image_version', action='store', type=str)
 p.add_argument('--queue', dest='queue', action='store', type=str)
 p.add_argument('--script', dest='script', action='store', type=str)
+p.add_argument('--extra', dest='extra', action='store', type=str, default = None,
+                help = 'Use this flag to add custom export variables. Flag will be used as is, so use carefully!!!')
 
 ## Hardware
 p.add_argument('--memory', dest='memory', action='store', type=int, default = 2000)
@@ -108,20 +110,42 @@ if arguments.memory:
 if arguments.vcpus:
     cpu = max(cpu, arguments.vcpus)
 
+extra = None
+if arguments.extra is not None:
+    extra = str(arguments.extra).rstrip(r';$')
+    while True:
+        confirm = input(f'''
+    The following statement(s) will be added, as is to the export variables:
+
+    {extra}
+
+    Are you sure you wish to continue? [Y/n]
+    ''')
+        if confirm == 'n':
+            sys.exit(0)
+        elif confirm == 'Y':
+            print('Confirmed. Processing inputs ...')
+            break
+        else:
+            print(f'\n[Invalid Response] "{confirm}" is not a valid response. Please select either "Y" or "n" (case-sensitive)\nTry again:')
+
 fs = s3fs.S3FileSystem(anon=False)
 
 def submit_job (name, fwd, rev, s3output = out_s3path,
                 job_queue = queue, img_version = version, docker_image = image,
                 job_storage = storage, job_cpu = cpu, job_memory = memory, job_attempts = retries,
-                job_data_mount = data_mount, job_script = script_loc, pipeline = pipeline):
+                job_data_mount = data_mount, job_script = script_loc, pipeline = pipeline, extra = extra):
 
     aegea_cmd = None
     memoryPerCore = f"{int(job_memory/(job_cpu * 1000))}G"
     s3output_path = f"{s3output}/{name}"
     complete = fs.exists(f'{s3output_path}/job.complete')
 
+    if extra is None:
+        extra = ''
+
     if not complete:
-        execute_cmd = f'export coreNum={job_cpu};export memoryPerCore={memoryPerCore};export fastq1={fwd};export fastq2={rev};export S3OUTPUTPATH={s3output_path}; {job_script}' 
+        execute_cmd = f'{extra}; export coreNum={job_cpu};export memoryPerCore={memoryPerCore};export fastq1={fwd};export fastq2={rev};export S3OUTPUTPATH={s3output_path}; {job_script}' 
         aegea_cmd = f'aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command=\'{execute_cmd}\''
 
     return aegea_cmd
@@ -140,7 +164,6 @@ elif arguments.in_s3path:
     df = pd.DataFrame()
     df["FilePaths"] = fs.glob(in_s3path + '/*fastq.gz')
     df["sampleName"] = df["FilePaths"].str.extract(r'([a-zA-Z0-9_\-\.]+)_S\d+_R[12]_\d+\.fastq\.gz')
-    # df["sampleName"] = df["sampleName"].map(lambda x: x.rstrip(r'[^a-zA-Z0-9]+'))
     df["Orientation"] = df["FilePaths"].str.extract(r'[a-zA-Z0-9_\-\.]+_S\d+_(R[12])_\d+\.fastq\.gz')
     df["FilePaths"] = df["FilePaths"].apply(lambda x: 's3://' + x)
 
@@ -151,6 +174,9 @@ elif arguments.in_s3path:
 else:
     print('[FATAL] At least one form of input required. Please either submit a seedfile or a s3 folder with paired fastq.gz files')
     sys.exit(1)
+
+# Handle special characters in Sample Names
+seed_df["sampleName"] = seed_df["sampleName"].map(lambda x: re.sub(r'\W+', '-', x))
 
 commands = seed_df.apply(lambda row: submit_job(name = row['sampleName'], fwd = row['R1'], rev = row['R2']), axis=1).dropna(axis='index')
 commands.to_csv(aegea_cmd_file, header = False, index = False)
