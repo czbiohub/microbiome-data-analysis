@@ -7,13 +7,14 @@ General purpose submission script for pipelines that require you to export S3 pa
 To use this script with more pipleines, update the pipelines.json file.
 """
 
-import s3fs
 import argparse
-import pandas as pd
+import json
 import os
 import re
-import json
 import sys
+
+import pandas as pd
+import s3fs
 
 usage = "python create_submission_commands.py   --seed seedfile.txt \
                                                 --s3_output s3://czbiohub-microbiome/My_Lab/My_Name/My_Project/ \
@@ -48,6 +49,8 @@ p.add_argument('--queue', dest='queue', action='store', type=str)
 p.add_argument('--script', dest='script', action='store', type=str)
 p.add_argument('--extra', dest='extra', action='store', type=str, default = None,
                 help = 'Use this flag to add custom export variables. Flag will be used as is, so use carefully!!!')
+p.add_argument('--force', dest='overwrite', action='store_true', default=False,
+                help = 'Overwrite existing results')
 
 ## Hardware
 p.add_argument('--memory', dest='memory', action='store', type=int, default = 2000)
@@ -110,6 +113,10 @@ if arguments.memory:
 if arguments.vcpus:
     cpu = max(cpu, arguments.vcpus)
 
+overwrite = False
+if arguments.overwrite:
+    overwrite = True
+
 extra = None
 if arguments.extra is not None:
     extra = str(arguments.extra).rstrip(r';$')
@@ -128,24 +135,27 @@ if arguments.extra is not None:
             break
         else:
             print(f'\n[Invalid Response] "{confirm}" is not a valid response. Please select either "Y" or "n" (case-sensitive)\nTry again:')
+    extra = f'{extra};'
+else:
+    extra = ''
 
 fs = s3fs.S3FileSystem(anon=False)
 
 def submit_job (name, fwd, rev, s3output = out_s3path,
                 job_queue = queue, img_version = version, docker_image = image,
                 job_storage = storage, job_cpu = cpu, job_memory = memory, job_attempts = retries,
-                job_data_mount = data_mount, job_script = script_loc, pipeline = pipeline, extra = extra):
+                job_data_mount = data_mount, job_script = script_loc, pipeline = pipeline, extra = extra, overwrite = overwrite):
 
     aegea_cmd = None
     memoryPerCore = f"{int(job_memory/(job_cpu * 1000))}G"
     s3output_path = f"{s3output}/{name}"
-    complete = fs.exists(f'{s3output_path}/job.complete')
-
-    if extra is None:
-        extra = ''
+    if overwrite:
+        complete = False
+    else:
+        complete = fs.exists(f'{s3output_path}/job.complete')
 
     if not complete:
-        execute_cmd = f'{extra}; export coreNum={job_cpu};export memoryPerCore={memoryPerCore};export fastq1={fwd};export fastq2={rev};export S3OUTPUTPATH={s3output_path}; {job_script}' 
+        execute_cmd = f'{extra}export coreNum={job_cpu};export memPerCore={memoryPerCore};export fastq1={fwd};export fastq2={rev};export S3OUTPUTPATH={s3output_path}; {job_script}' 
         aegea_cmd = f'aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command=\'{execute_cmd}\''
 
     return aegea_cmd
@@ -166,7 +176,7 @@ elif arguments.in_s3path:
     df["sampleName"] = df["FilePaths"].str.extract(r'([a-zA-Z0-9_\-\.]+)_S\d+_R[12]_\d+\.fastq\.gz')
     df["Orientation"] = df["FilePaths"].str.extract(r'[a-zA-Z0-9_\-\.]+_S\d+_(R[12])_\d+\.fastq\.gz')
     df["FilePaths"] = df["FilePaths"].apply(lambda x: 's3://' + x)
-
+    
     seed_df = df.pivot(index='sampleName',columns='Orientation',values='FilePaths')
     seed_df.columns.name = None
     seed_df = seed_df.reset_index()
