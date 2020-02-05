@@ -7,13 +7,14 @@
 # This script is used in conjunction with aegea batch (aegea_batch_basecall.sh).
 #
 # Variables required from sourcing script
-# NANOPORE_RUNPATH, RUN_NAME, DATA_DEST, 
+# NANOPORE_RUNPATH, RUN_NAME, DATA_DEST,
 # coreNum, barcoded, flowcell, kit, barcodekit
 #
 # Revision History:
 # 2019.03.12 - created by Bryan Merrill
 # 2019.08.28 - Dockerized
-# 
+# 2020.02.04 - Adapting for basecall into czb-seqbot
+#
 #####################################################################
 
 echo "**** START ****"
@@ -64,25 +65,25 @@ cp -p guppy_fastqs/sequencing_summary.txt 00_MinIONQC/
 ## If run has barcodes, do demultiplexing
 mkdir 01_BASECALLED
 if [ $barcoded == "yes" ]; then
-guppy_barcoder -r -i fastq_concat -s 01_BASECALLED -t $coreNum --barcode_kits $barcodekit 2> 00_MinIONQC/barcoder.err 1> 00_MinIONQC/barcoder.out
+  guppy_barcoder -r -i fastq_concat -s 01_BASECALLED -t $coreNum --barcode_kits $barcodekit 2> 00_MinIONQC/barcoder.err 1> 00_MinIONQC/barcoder.out
 fi
 
 if [ $barcoded == "no" ]; then
-mv fastq_concat 01_BASECALLED/barcode00
+  mv fastq_concat 01_BASECALLED/barcode00
 fi
 
 pigz 01_BASECALLED/barcode*/*.fastq
 
-for dir in `ls -d 01_BASECALLED/barcode*/`; do 
-barcode=`echo $dir | sed 's|01_BASECALLED/barcode||;s|/||'`
-for file in `ls $dir*`; do 
-newname=${RUN_NAME}__barcode${barcode}__`echo $file | awk -F'_' '{print $5}'`; mv $file $dir$newname
-done
+for dir in `ls -d 01_BASECALLED/barcode*/`; do
+  barcode=`echo $dir | sed 's|01_BASECALLED/barcode||;s|/||'`
+  for file in `ls $dir*`; do
+    newname=${RUN_NAME}__barcode${barcode}__`echo $file | awk -F'_' '{print $5}'`; mv $file $dir$newname
+  done
 done
 
 
 for folder in 00_MinIONQC 01_BASECALLED; do
-aws s3 sync $folder ${DATA_DEST}/${RUN_NAME}/$folder/;
+  aws s3 sync $folder ${DATA_DEST}/${RUN_NAME}/$folder/;
 done
 
 echo "File transfer complete."

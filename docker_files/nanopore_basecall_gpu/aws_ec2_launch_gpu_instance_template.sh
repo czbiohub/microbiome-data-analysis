@@ -34,7 +34,7 @@ new_block_device=DeviceName=/dev/sda1,Ebs={VolumeSize=1000} # Adds storage at ro
 # To ssh into the instance manually - aegea ssh ubuntu@$instance_name -i $pem_name.pem
 # Although you must have czbiohub_microbiome.pem on your path and do - chmod 400 czbiohub_microbiome.pem
 instance_name=Nanopore_Basecall_$( date +"%Y%m%d_%H%M%S" )
-new_tags=ResourceType=instance,Tags=[{Key=Name,Value=$instance_name},{Key=Project,Value=Microbiome_Nanopore}]
+new_tags=ResourceType=instance,Tags=[{Key=Name,Value=$instance_name},{Key=Project,Value=Microbiome_Nanopore_BrianYu},{Key=Team_Leader,Value=Norma_Neff}]
 
 # Start Instances. --user-data must end in .txt and contain #!/bin/bash in first row
 # shutdown behavior is stop or terminate. In this case use terminate.
