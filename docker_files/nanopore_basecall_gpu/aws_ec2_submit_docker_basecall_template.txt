@@ -30,7 +30,7 @@ docker container run --runtime=nvidia \
 -e barcodekit=EXP-NBD104 \
 -e DATA_DEST=s3://FILL/IN/PATH \
 --name=nanopore_container \
-bmerrill9/nanopore_basecall_demux_gpu:latest "./nanopore_basecall_demux.sh"
+brianyu2010/nanopore_basecall_demux_gpu:latest "./nanopore_basecall_demux.sh"
 
 # Wait until the process finishes before executing the next command
 docker wait nanopore_container

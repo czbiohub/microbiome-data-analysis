@@ -24,10 +24,10 @@ START_TIME=$SECONDS
 LOCAL=$(pwd)
 # The next two lines are necessary because there are two different /mnt locations
 # Without this odd copy step, Snakemake fails (other things do too).
-cp -pr * $LOCAL/
-cd $LOCAL
+# cp -pr * $LOCAL/
+# cd $LOCAL
 
-export PATH="/opt/conda/bin:${PATH}"
+# export PATH="/opt/conda/bin:${PATH}"
 
 coreNum=${coreNum:-16}
 NANOPORE_RUNPATH=${NANOPORE_RUNPATH:-s3://czb-seqbot/nanopore} # UPDATE!!!
@@ -59,7 +59,7 @@ cat guppy_fastqs/*.fastq > fastq_concat/fastq_runid_000000000000_0.fastq
 
 ## Running QC on the output summary file
 mkdir 00_MinIONQC
-Rscript MinIONQC.R -i guppy_fastqs/sequencing_summary.txt -o 00_MinIONQC
+Rscript MinIONQC.R -i guppy_fastqs/sequencing_summary.txt -o 00_MinIONQC -p guppy_threads -s FALSE
 cp -p guppy_fastqs/sequencing_summary.txt 00_MinIONQC/
 
 ## If run has barcodes, do demultiplexing
