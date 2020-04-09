@@ -47,8 +47,8 @@ p.add_argument('--image', dest='image_name', action='store', type=str)
 p.add_argument('--image_version', dest='image_version', action='store', type=str)
 p.add_argument('--queue', dest='queue', action='store', type=str)
 p.add_argument('--script', dest='script', action='store', type=str)
-p.add_argument('--extra', dest='extra', action='store', type=str, default = None,
-                help = 'Use this flag to add custom export variables. Flag will be used as is, so use carefully!!!')
+p.add_argument('--extra', dest='extraList', action='append', type=str, default = [],
+                help = 'Use this flag to add custom export variables. Can be used multiple times in a single command to add multiple variables. You will be asked for a confirmation.')
 p.add_argument('--force', dest='overwrite', action='store_true', default=False,
                 help = 'Overwrite existing results')
 
@@ -118,8 +118,9 @@ if arguments.overwrite:
     overwrite = True
 
 extra = None
-if arguments.extra is not None:
-    extra = str(arguments.extra).rstrip(r';$')
+if len(arguments.extraList) > 0:
+    extraList = map(lambda x: str(x).rstrip(r';$'), arguments.extraList)
+    extra = ''.join([f'export {e};' for e in extraList])
     while True:
         confirm = input(f'''
     The following statement(s) will be added, as is to the export variables:
@@ -135,7 +136,6 @@ if arguments.extra is not None:
             break
         else:
             print(f'\n[Invalid Response] "{confirm}" is not a valid response. Please select either "Y" or "n" (case-sensitive)\nTry again:')
-    extra = f'{extra};'
 else:
     extra = ''
 
@@ -165,21 +165,43 @@ if arguments.seedfile:
     try:
         # Comma sep
         seed_df = pd.read_csv(arguments.seedfile)
-    except:
+        seed_df["sampleName"]
+    except KeyError as e:
         # Tab sep
-        seed_df = pd.read_csv(arguments.seedfile, sep = "\t")
-
+        seed_df = pd.read_table(arguments.seedfile)
+        seed_df["sampleName"]
+    except KeyError as e:
+        print(f"[FATAL] {e}")
+        print(df.sample(10))
+        sys.exit(1)
+    finally:
+        print(f'Sample:\n{seed_df.head(5)}')
 elif arguments.in_s3path:
     in_s3path = arguments.in_s3path.rstrip("/")
     df = pd.DataFrame()
     df["FilePaths"] = fs.glob(in_s3path + '/*fastq.gz')
-    df["sampleName"] = df["FilePaths"].str.extract(r'([a-zA-Z0-9_\-\.]+)_S\d+_R[12]_\d+\.fastq\.gz')
-    df["Orientation"] = df["FilePaths"].str.extract(r'[a-zA-Z0-9_\-\.]+_S\d+_(R[12])_\d+\.fastq\.gz')
-    df["FilePaths"] = df["FilePaths"].apply(lambda x: 's3://' + x)
     
-    seed_df = df.pivot(index='sampleName',columns='Orientation',values='FilePaths')
+    try:
+        df["sampleName"] = df["FilePaths"].str.extract(r'([a-zA-Z0-9_\-\.]+)_S\d+_L\d+_R[12]_\d+\.fastq\.gz')
+        df["Orientation"] = df["FilePaths"].str.extract(r'[a-zA-Z0-9_\-\.]+_S\d+_L\d+_(R[12])_\d+\.fastq\.gz')
+        df["FilePaths"] = df["FilePaths"].apply(lambda x: 's3://' + x)
+        seed_df = df.pivot(index='sampleName',columns='Orientation',values='FilePaths')
+    except ValueError as e:
+        df["sampleName"] = df["FilePaths"].str.extract(r'([a-zA-Z0-9_\-\.]+)_S\d+_R[12]_\d+\.fastq\.gz')
+        df["Orientation"] = df["FilePaths"].str.extract(r'[a-zA-Z0-9_\-\.]+_S\d+_(R[12])_\d+\.fastq\.gz')
+        # df["FilePaths"] = df["FilePaths"].apply(lambda x: 's3://' + x)
+        seed_df = df.pivot(index='sampleName',columns='Orientation',values='FilePaths')
+    except e:
+        print(f"[FATAL] {e}")
+        print(df.sample(10))
+        sys.exit(1)
+    finally:
+        print(f'Sample:\n{seed_df.head(5)}')
+
     seed_df.columns.name = None
     seed_df = seed_df.reset_index()
+    seedfile = f'{os.path.splitext(aegea_cmd_file)[0]}.seedfile.csv'
+    seed_df.to_csv(seedfile, index = False)
     # seed_df ["commands"] = seed_df.apply(lambda row: submit_job(name = row['sampleName'], fwd = row['R1'], rev = row['R2']), axis=1)
 else:
     print('[FATAL] At least one form of input required. Please either submit a seedfile or a s3 folder with paired fastq.gz files')

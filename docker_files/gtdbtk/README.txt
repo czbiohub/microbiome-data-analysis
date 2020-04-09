@@ -18,3 +18,5 @@ ________________________________________________________________________________
          /opt/conda/etc/conda/deactivate.d
 
 ################################################################################
+
+Alternatively, download the db locally, and use the run_gtdb_classify.sh

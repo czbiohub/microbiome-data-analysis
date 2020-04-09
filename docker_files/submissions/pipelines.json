@@ -10,12 +10,23 @@
         "script" : "./run_readqc.sh",
         "retries" : 5
     },
-    "midas" : {
-        "memory" : 8000,
-        "image" : "sunitjain/midas",
-        "version" : "20191118141332",
+    "bowtie2" : {
+        "memory" : 32000,
+        "image" : "sunitjain/bowtie2",
+        "version" : "20200212111032",
         "queue" : "microbiome-lowPriority",
-        "cpu" : 4,
+        "cpu" : 16,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_bowtie2.sh",
+        "retries" : 5
+    },
+    "midas" : {
+        "memory" : 16000,
+        "image" : "sunitjain/midas",
+        "version" : "20191119142538",
+        "queue" : "microbiome-lowPriority",
+        "cpu" : 8,
         "storage" : 500,
         "data_mount" : "/mnt",
         "script" : "./run_midas.sh",
@@ -33,11 +44,11 @@
         "retries" : 5
     },
     "ninjamap" : {
-        "memory" : 64000,
+        "memory" : 128000,
         "image" : "sunitjain/ninjamap",
         "version" : "20190821113435",
         "queue" : "microbiome-highPriority",
-        "cpu" : 8,
+        "cpu" : 16,
         "storage" : 500,
         "data_mount" : "/mnt",
         "script" : "./ninjaMap_index.sh",

@@ -48,7 +48,7 @@ export PYTHONPATH="/opt/conda/lib/python2.7/site-packages/midas"
 
 echo $PATH
 LOCAL=$(pwd)
-
+coreNum=${coreNum:-4}
 OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
 RAW_FASTQ="${OUTPUTDIR}/raw_fastq"
 REF_DB="${OUTPUTDIR}/reference"
