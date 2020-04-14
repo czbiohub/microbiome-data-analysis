@@ -48,7 +48,7 @@
         "image" : "sunitjain/ninjamap",
         "version" : "20190821113435",
         "queue" : "microbiome-highPriority",
-        "cpu" : 16,
+        "cpu" : 15,
         "storage" : 500,
         "data_mount" : "/mnt",
         "script" : "./ninjaMap_index.sh",
