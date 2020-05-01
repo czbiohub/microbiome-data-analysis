@@ -2,8 +2,8 @@
 """
 General purpose submission script for pipelines that require you to export S3 paths for:
     Output directory    --> 'S3OUTPUTPATH', 
-    Input fwd_fastq     --> 'fastq1', and 
-    Input rev_fastq     --> 'fastq2'
+    Input fwd_fastq     --> 'R1', and 
+    Input rev_fastq     --> 'R2'
 To use this script with more pipleines, update the pipelines.json file.
 """
 
@@ -43,12 +43,13 @@ p.add_argument('-i','--s3_input', dest='in_s3path', action='store', type=str,
 # Optional
 ## AWS Logistics
 p.add_argument('--to_aws', dest='xfer', action='store_true')
+p.add_argument('--yes', dest='no_confirmation', action='store_true')
 p.add_argument('--image', dest='image_name', action='store', type=str)
 p.add_argument('--image_version', dest='image_version', action='store', type=str)
 p.add_argument('--queue', dest='queue', action='store', type=str)
 p.add_argument('--script', dest='script', action='store', type=str)
 p.add_argument('--extra', dest='extraList', action='append', type=str, default = [],
-                help = 'Use this flag to add custom export variables. Can be used multiple times in a single command to add multiple variables. You will be asked for a confirmation.')
+                help = 'Use this flag to add custom export variables. Can be used multiple times in a single command to add multiple variables. You will be asked for a confirmation (unless --yes specified).')
 p.add_argument('--force', dest='overwrite', action='store_true', default=False,
                 help = 'Overwrite existing results')
 
@@ -121,21 +122,22 @@ extra = None
 if len(arguments.extraList) > 0:
     extraList = map(lambda x: str(x).rstrip(r';$'), arguments.extraList)
     extra = ''.join([f'export {e};' for e in extraList])
-    while True:
-        confirm = input(f'''
-    The following statement(s) will be added, as is to the export variables:
+    if not arguments.no_confirmation:
+        while True:
+            confirm = input(f'''
+        The following statement(s) will be added, as is to the export variables:
 
-    {extra}
+        {extra}
 
-    Are you sure you wish to continue? [Y/n]
-    ''')
-        if confirm == 'n':
-            sys.exit(0)
-        elif confirm == 'Y':
-            print('Confirmed. Processing inputs ...')
-            break
-        else:
-            print(f'\n[Invalid Response] "{confirm}" is not a valid response. Please select either "Y" or "n" (case-sensitive)\nTry again:')
+        Are you sure you wish to continue? [Y/n]
+        ''')
+            if confirm == 'n':
+                sys.exit(0)
+            elif confirm == 'Y':
+                print('Confirmed. Processing inputs ...')
+                break
+            else:
+                print(f'\n[Invalid Response] "{confirm}" is not a valid response. Please select either "Y" or "n" (case-sensitive)\nTry again:')
 else:
     extra = ''
 

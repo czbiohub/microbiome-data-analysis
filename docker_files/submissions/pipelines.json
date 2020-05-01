@@ -46,7 +46,7 @@
     "ninjamap" : {
         "memory" : 128000,
         "image" : "sunitjain/ninjamap",
-        "version" : "20190821113435",
+        "version" : "20200425142151",
         "queue" : "microbiome-highPriority",
         "cpu" : 15,
         "storage" : 500,
