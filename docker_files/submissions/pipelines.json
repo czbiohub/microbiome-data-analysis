@@ -1,10 +1,32 @@
 { 
-    "midas" : {
+    "readqc" : {
         "memory" : 8000,
-        "image" : "sunitjain/midas",
-        "version" : "20191118141332",
+        "image" : "sunitjain/readqc",
+        "version" : "20200121211135",
         "queue" : "microbiome-lowPriority",
         "cpu" : 4,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_readqc.sh",
+        "retries" : 5
+    },
+    "bowtie2" : {
+        "memory" : 32000,
+        "image" : "sunitjain/bowtie2",
+        "version" : "20200212111032",
+        "queue" : "microbiome-lowPriority",
+        "cpu" : 16,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_bowtie2.sh",
+        "retries" : 5
+    },
+    "midas" : {
+        "memory" : 16000,
+        "image" : "sunitjain/midas",
+        "version" : "20191119142538",
+        "queue" : "microbiome-lowPriority",
+        "cpu" : 8,
         "storage" : 500,
         "data_mount" : "/mnt",
         "script" : "./run_midas.sh",
@@ -22,24 +44,36 @@
         "retries" : 5
     },
     "ninjamap" : {
-        "memory" : 64000,
+        "memory" : 128000,
         "image" : "sunitjain/ninjamap",
-        "version" : "latest",
+        "version" : "20200425142151",
         "queue" : "microbiome-highPriority",
-        "cpu" : 8,
+        "cpu" : 15,
         "storage" : 500,
         "data_mount" : "/mnt",
         "script" : "./ninjaMap_index.sh",
-	"retries" : 1
+        "retries" : 1
     },
-    "nm_mates" : {
+    "mates" : {
         "memory" : 64000,
         "image" : "sunitjain/ninjamap",
-        "version" : "latest",
-        "queue" : "microbiome-highPriority",
+        "version" : "20191119143351",
+        "queue" : "microbiome-lowPriority",
         "cpu" : 8,
         "storage" : 500,
         "data_mount" : "/mnt",
-        "script" : "./ninjaMap_mate.sh"
+        "script" : "./ninjaMap_mate.sh",
+        "retries" : 5
+    },
+    "mash" : {
+        "memory" : 16000,
+        "image" : "sunitjain/mash",
+        "version" : "20200122233144",
+        "queue" : "microbiome-lowPriority",
+        "cpu" : 8,
+        "storage" : 500,
+        "data_mount" : "/mnt",
+        "script" : "./run_mash.sh",
+        "retries" : 5
     }
 }
