@@ -51,7 +51,6 @@ docker container run --rm \
     ${SEQKIT_DOCKER_IMAGE}:${SEQKIT_DOCKER_VERSION} \
     seqkit \
         bam \
-        -T \
         -s \
         -j ${THREADS} \
         ${BAM_DIR}/*bam 1> ${STATS_DIR}/bam_stats.txt
