@@ -63,7 +63,6 @@ docker container run --rm \
     --volume "$(pwd)":"$(pwd)" \
     ${METABAT_DOCKER_IMAGE}:${METABAT_DOCKER_VERSION} \
     jgi_summarize_bam_contig_depths \
-        -t ${THREADS} \
         --outputDepth ${METABAT_DEPTH_FILE} \
         ${BAM_DIR}/*bam
 
