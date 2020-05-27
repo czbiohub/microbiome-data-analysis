@@ -25,7 +25,7 @@ GTDB_DOCKER_VERSION="1.1.1"
 
 SAMPLE_NAME=${1}
 ASSEMBLED_FASTA=${2}
-BAM_DIR=${3}
+BAM_DIR=${3%/}
 
 BIN_FASTA_EXT="${4:-"fa"}"
 LOCAL_GTDB_DIR="${5:-"/home/ec2-user/efs/docker/GTDB/SCv1/db/release89"}"
@@ -71,12 +71,12 @@ docker container run --rm \
     --workdir "$(pwd)" \
     --volume "$(pwd)":"$(pwd)" \
     ${METABAT_DOCKER_IMAGE}:${METABAT_DOCKER_VERSION} \
-    runMetaBat.sh \
+    metabat2 \
         --seed 1712 \
         -t ${THREADS} \
         -i ${ASSEMBLED_FASTA} \
         -a ${METABAT_DEPTH_FILE} \
-        -o ${METABAT_OUTPUT_DIR}
+        -o ${METABAT_OUTPUT_DIR}/${SAMPLE_NAME}
 
 ###############################################################################
 # Run SeqKit for fasta stats
