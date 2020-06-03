@@ -18,6 +18,9 @@ CHECKM_DOCKER_VERSION="1.1.2--py_1"
 GTDB_DOCKER_IMAGE="ecogenomic/gtdbtk"
 GTDB_DOCKER_VERSION="1.1.1"
 
+BBMAP_DOCKER_IMAGE="quay.io/biocontainers/bbmap"
+BBMAP_DOCKER_VERSION="38.79--h516909a_0"
+
 ###############################################################################
 
 SAMPLE_NAME=${1%/}
@@ -90,3 +93,18 @@ docker container run --rm \
 # grep -c '>' ${SAMPLE_NAME}/orfs/genes/*_protein.fna | \
 #     sed -e 's/_protein.fna:/\t/' -e "s#${SAMPLE_NAME}/orfs/genes/##" > ${SAMPLE_NAME}/orfs/num_genes.txt
 ###############################################################################
+
+# Compare sketch to NCBI
+find . -name "${BIN_DIR}/*.${BIN_FASTA_EXT}" |\
+parallel -j ${THREADS} \
+    "docker container run --rm \
+        --workdir $(pwd) \
+        --volume $(pwd):$(pwd) \
+        ${BBMAP_DOCKER_IMAGE}:${BBMAP_DOCKER_VERSION} \
+        sendsketch.sh \
+            in={} \
+            out={.}.sketch \
+            aws=t \
+            overwrite=t"
+
+##############################################################################################################################################################

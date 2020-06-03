@@ -129,8 +129,7 @@ docker container run --rm \
 ###############################################################################
 
 # Compare sketch to NCBI
-# docker container run --rm -it --workdir $(pwd) -v $(pwd):$(pwd) quay.io/biocontainers/bbmap:38.79--h516909a_0 sendsketch.sh in=Com3_S78_R1_001.fastq.gz out=Com3_R1.sketch aws=t  overwrite=t
-ls "${METABAT_OUTPUT_DIR}/*.${BIN_FASTA_EXT}" |\
+find . -name "${METABAT_OUTPUT_DIR}/*.${BIN_FASTA_EXT}" |\
 parallel -j ${THREADS} \
     "docker container run --rm \
         --workdir $(pwd) \
@@ -141,3 +140,5 @@ parallel -j ${THREADS} \
             out={.}.sketch \
             aws=t \
             overwrite=t"
+
+###############################################################################
