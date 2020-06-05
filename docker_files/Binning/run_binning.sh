@@ -19,7 +19,7 @@ CHECKM_DOCKER_IMAGE="quay.io/biocontainers/checkm-genome"
 CHECKM_DOCKER_VERSION="1.1.2--py_1"
 
 GTDB_DOCKER_IMAGE="ecogenomic/gtdbtk"
-GTDB_DOCKER_VERSION="1.1.1"
+GTDB_DOCKER_VERSION="1.2.0"
 
 BBMAP_DOCKER_IMAGE="quay.io/biocontainers/bbmap"
 BBMAP_DOCKER_VERSION="38.79--h516909a_0"
