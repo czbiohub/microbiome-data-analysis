@@ -24,6 +24,9 @@ GTDB_DOCKER_VERSION="1.2.0"
 BBMAP_DOCKER_IMAGE="quay.io/biocontainers/bbmap"
 BBMAP_DOCKER_VERSION="38.79--h516909a_0"
 
+BARRNAP_DOCKER_IMAGE="quay.io/biocontainers/barrnap"
+BARRNAP_DOCKER_VERSION="0.9--3"
+
 ###############################################################################
 
 SAMPLE_NAME=${1}
@@ -45,7 +48,9 @@ GTDB_OUTPUT_DIR="${SAMPLE_NAME}/GTDBtk"
 GTDB_DB_PATH="/refdata"
 GTDB_DATA_PATH="/data"
 
-mkdir -p ${STATS_DIR} ${METABAT_OUTPUT_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR}
+BARRNAP_OUTPUT_DIR="${SAMPLE_NAME}/barrnap"
+
+mkdir -p ${STATS_DIR} ${METABAT_OUTPUT_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR} ${BARRNAP_OUTPUT_DIR}
 ###############################################################################
 # Run SeqKit for BAM stats
 docker container run --rm \
@@ -129,7 +134,7 @@ docker container run --rm \
 ###############################################################################
 
 # Compare sketch to NCBI
-find . -name "${METABAT_OUTPUT_DIR}/*.${BIN_FASTA_EXT}" |\
+find ${METABAT_OUTPUT_DIR} -name "${SAMPLE_NAME}.*.${BIN_FASTA_EXT}" |\
 parallel -j ${THREADS} \
     "docker container run --rm \
         --workdir $(pwd) \
@@ -138,7 +143,16 @@ parallel -j ${THREADS} \
         sendsketch.sh \
             in={} \
             out={.}.sketch \
-            aws=t \
             overwrite=t"
 
 ###############################################################################
+
+# Extract rrna
+find ${METABAT_OUTPUT_DIR} -name "${SAMPLE_NAME}.*.${BIN_FASTA_EXT}" |\
+parallel -j ${THREADS} \
+    "docker container run --rm \
+        --workdir $(pwd) \
+        --volume $(pwd):$(pwd) \
+        ${BARRNAP_DOCKER_IMAGE}:${BARRNAP_DOCKER_VERSION} \
+        barrnap --threads 1 \
+            -o ${BARRNAP_OUTPUT_DIR}/{/.}.rrna.${BIN_FASTA_EXT} {} > ${BARRNAP_OUTPUT_DIR}/{/.}.rrna.gff"
