@@ -77,9 +77,9 @@
         "retries": 5
     },
     "humann2": {
-        "memory": 128000,
+        "memory": 64000,
         "image": "sunitjain/humann2",
-        "version": "20200616134610",
+        "version": "20200618085314",
         "queue": "fischbach__spot100",
         "cpu": 15,
         "storage": 500,

@@ -19,6 +19,7 @@ LOCAL_DB_PATH=${LOCAL}/databases
 # S3DBPREFIX=s3://czbiohub-microbiome/Synthetic_Community/Genome_References/ncbi_fasta/Dorea-longicatena-DSM-13814-GCF_000154065.1_ASM15406v1
 
 S3DBPATH=${S3DBPATH:-"s3://czbiohub-microbiome/ReferenceDBs/Humann2"}
+DEFAULT_MP_DB_PATH="/opt/conda/bin/metaphlan_databases"
 
 # Setup directory structure
 OUTPUTDIR=${LOCAL}/tmp_$( date +"%Y%m%d_%H%M%S" )
@@ -55,9 +56,13 @@ aws s3 sync ${S3DBPATH} ${LOCAL_DB_PATH} --quiet
 humann2_config --update database_folders utility_mapping ${LOCAL_DB_PATH}/utility_mapping
 humann2_config --update database_folders nucleotide ${LOCAL_DB_PATH}/chocophlan
 humann2_config --update database_folders protein ${LOCAL_DB_PATH}/uniref
+METAPHLAN_BOWTIE_DB=${LOCAL_DB_PATH}/metaphlan2
+
+# Set the default metaphlan2 database
+rm -rf "${DEFAULT_MP_DB_PATH}" || exit 1
+ln -s ${METAPHLAN_BOWTIE_DB} "${DEFAULT_MP_DB_PATH}"
 
 JOB_LOG="${LOG_DIR}/${SAMPLE_NAME}.log"
-TAXA_PROFILE="${HM2_OUTPUT}/${SAMPLE_NAME}.taxa_profile.tsv"
 
 ## Humann2 the reads
 humann2 \
@@ -66,11 +71,11 @@ humann2 \
     --protein-database ${LOCAL_DB_PATH}/uniref \
     --o-log ${JOB_LOG} \
     --threads ${coreNum} \
-    --taxonomic-profile ${TAXA_PROFILE} \
     --output-basename ${SAMPLE_NAME} \
     --input ${FASTQ_FILES} \
-    --output ${HM2_OUTPUT} | \
-    tee -a ${LOG_DIR}/log.txt
+    --output ${HM2_OUTPUT} \
+    --memory-use maximum \
+    --remove-temp-output
 
 ######################### HOUSEKEEPING #############################
 DURATION=$((SECONDS - START_TIME))
