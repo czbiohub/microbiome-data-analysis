@@ -2,7 +2,6 @@
 
 import os
 import sys
-import s3fs
 import numpy as np
 import pandas as pd
 
@@ -18,6 +17,7 @@ checkm_summary_file = f"{input_dir}/qc/checkm/qc.tsv"
 gtdbtk_summary_file = f"{input_dir}/qc/GTDBtk/gtdbtk.bac120.summary.tsv"
 genome_summary_file = f"{input_dir}/qc/stats/fasta_stats.txt"
 gene_summary_file = f"{input_dir}/qc/orfs/num_genes.txt"
+quast_summary_file = f"{input_dir}/qc/quast/transposed_report.tsv"
 
 database_basic_stat = f"{input_dir}/db/{dbname}.db_metadata.tsv"
 
@@ -101,6 +101,19 @@ def parse_seqkit_stats(stats_file):
     return df[keep_cols].set_index("bin_name")
 
 
+# Quast
+def parse_quast_stats(quast_file):
+    df = pd.read_table(quast_file).rename(
+        columns={
+            "Assembly": "bin_name",
+            "# predicted rRNA genes": "#_predicted_rRNA_genes",
+        }
+    )
+    df["bin_name"] = df["bin_name"].apply(lambda x: x.replace("_", "-"))
+    keep_cols = ["bin_name", "#_predicted_rRNA_genes"]
+    return df[keep_cols].set_index("bin_name")
+
+
 if __name__ == "__main__":
     print("Parsing CheckM output ...")
     checkm_df = parse_checkm_output(checkm_summary_file).set_index("bin_name")
@@ -116,12 +129,14 @@ if __name__ == "__main__":
     bin_stats_df = parse_seqkit_stats(genome_summary_file)
     print("Parsing Genes output ...")
     genes_df = parse_gene_stats(gene_summary_file)
+    print("Parsing Quast output ...")
+    quast_df = parse_quast_stats(quast_summary_file)
 
     ## Aggregate
     print("Aggregating data ...")
     bins_df = (
         pd.concat(
-            [db_stats_df, bin_stats_df, genes_df, gtdb_df, checkm_df],
+            [db_stats_df, bin_stats_df, genes_df, gtdb_df, checkm_df, quast_df],
             axis=1,
             sort=False,
         )
