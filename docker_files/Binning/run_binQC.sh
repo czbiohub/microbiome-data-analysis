@@ -24,6 +24,9 @@ BBMAP_DOCKER_VERSION="38.79--h516909a_0"
 BARRNAP_DOCKER_IMAGE="quay.io/biocontainers/barrnap"
 BARRNAP_DOCKER_VERSION="0.9--3"
 
+QUAST_DOCKER_IMAGE="quay.io/biocontainers/quast"
+QUAST_DOCKER_VERSION="5.0.2--1"
+
 ###############################################################################
 
 SAMPLE_NAME=${1%/}
@@ -40,8 +43,10 @@ GTDB_DB_PATH="/refdata"
 GTDB_DATA_PATH="/data"
 
 BARRNAP_OUTPUT_DIR="${SAMPLE_NAME}/barrnap"
+QUAST_OUTPUT_DIR="${SAMPLE_NAME}/quast"
 
-mkdir -p ${STATS_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR} ${BARRNAP_OUTPUT_DIR}
+mkdir -p ${STATS_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR} ${BARRNAP_OUTPUT_DIR} ${QUAST_OUTPUT_DIR}
+
 ###############################################################################
 # Run SeqKit for fasta stats
 docker container run --rm \
@@ -53,7 +58,6 @@ docker container run --rm \
         -T \
         -j ${THREADS} \
         ${BIN_DIR}/*.${BIN_FASTA_EXT} 1> ${STATS_DIR}/fasta_stats.txt
-
 ###############################################################################
 # Run CheckM on each bin from metaBAT
 docker container run --rm \
@@ -86,6 +90,19 @@ docker container run --rm \
         --extension ${BIN_FASTA_EXT} \
         --genome_dir ${GTDB_DATA_PATH}/${BIN_DIR} \
         --out_dir ${GTDB_DATA_PATH}/${GTDB_OUTPUT_DIR}
+
+###############################################################################
+
+# Run quast on each bin to predict the rRNA number 
+docker container run --rm \
+    --workdir "$(pwd)" \
+    --volume "$(pwd)":"$(pwd)" \
+    ${QUAST_DOCKER_IMAGE}:${QUAST_DOCKER_VERSION} \
+	quast.py \
+	-t ${THREADS} \
+	--rna-finding \
+	-o ${QUAST_OUTPUT_DIR} \
+	${BIN_DIR}/*.${BIN_FASTA_EXT} 
 
 # # Keep Genes and Proteins
 # mkdir -p ${SAMPLE_NAME}/orfs/{genes,proteins}
