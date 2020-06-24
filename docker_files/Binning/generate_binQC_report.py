@@ -106,11 +106,11 @@ def parse_quast_stats(quast_file):
     df = pd.read_table(quast_file).rename(
         columns={
             "Assembly": "bin_name",
-            "# predicted rRNA genes": "#_predicted_rRNA_genes",
+            "# predicted rRNA genes": "num_predicted_rRNA_genes",
         }
     )
     df["bin_name"] = df["bin_name"].apply(lambda x: x.replace("_", "-"))
-    keep_cols = ["bin_name", "#_predicted_rRNA_genes"]
+    keep_cols = ["bin_name", "num_predicted_rRNA_genes"]
     return df[keep_cols].set_index("bin_name")
 
 
