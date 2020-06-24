@@ -186,9 +186,7 @@ def get_assemblies(term, email):
         return pd.Series([unique_id, orgName, label, metadata, link])
     orgName = get_organism_name(doc_summ)
     metadata = ";".join(tags)
-    # if download == True:
-    #     # download link
-    #     urllib.request.urlretrieve(link, f"{label}.fna.gz")
+
     return pd.Series([unique_id, orgName, label, metadata, link])
 
 
