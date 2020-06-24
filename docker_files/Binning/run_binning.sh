@@ -19,13 +19,19 @@ CHECKM_DOCKER_IMAGE="quay.io/biocontainers/checkm-genome"
 CHECKM_DOCKER_VERSION="1.1.2--py_1"
 
 GTDB_DOCKER_IMAGE="ecogenomic/gtdbtk"
-GTDB_DOCKER_VERSION="1.1.1"
+GTDB_DOCKER_VERSION="1.2.0"
+
+BBMAP_DOCKER_IMAGE="quay.io/biocontainers/bbmap"
+BBMAP_DOCKER_VERSION="38.79--h516909a_0"
+
+BARRNAP_DOCKER_IMAGE="quay.io/biocontainers/barrnap"
+BARRNAP_DOCKER_VERSION="0.9--3"
 
 ###############################################################################
 
 SAMPLE_NAME=${1}
 ASSEMBLED_FASTA=${2}
-BAM_DIR=${3}
+BAM_DIR=${3%/}
 
 BIN_FASTA_EXT="${4:-"fa"}"
 LOCAL_GTDB_DIR="${5:-"/home/ec2-user/efs/docker/GTDB/SCv1/db/release89"}"
@@ -42,7 +48,9 @@ GTDB_OUTPUT_DIR="${SAMPLE_NAME}/GTDBtk"
 GTDB_DB_PATH="/refdata"
 GTDB_DATA_PATH="/data"
 
-mkdir -p ${STATS_DIR} ${METABAT_OUTPUT_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR}
+BARRNAP_OUTPUT_DIR="${SAMPLE_NAME}/barrnap"
+
+mkdir -p ${STATS_DIR} ${METABAT_OUTPUT_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR} ${BARRNAP_OUTPUT_DIR}
 ###############################################################################
 # Run SeqKit for BAM stats
 docker container run --rm \
@@ -51,7 +59,6 @@ docker container run --rm \
     ${SEQKIT_DOCKER_IMAGE}:${SEQKIT_DOCKER_VERSION} \
     seqkit \
         bam \
-        -T \
         -s \
         -j ${THREADS} \
         ${BAM_DIR}/*bam 1> ${STATS_DIR}/bam_stats.txt
@@ -64,7 +71,6 @@ docker container run --rm \
     --volume "$(pwd)":"$(pwd)" \
     ${METABAT_DOCKER_IMAGE}:${METABAT_DOCKER_VERSION} \
     jgi_summarize_bam_contig_depths \
-        -t ${THREADS} \
         --outputDepth ${METABAT_DEPTH_FILE} \
         ${BAM_DIR}/*bam
 
@@ -73,12 +79,12 @@ docker container run --rm \
     --workdir "$(pwd)" \
     --volume "$(pwd)":"$(pwd)" \
     ${METABAT_DOCKER_IMAGE}:${METABAT_DOCKER_VERSION} \
-    runMetaBat.sh \
+    metabat2 \
         --seed 1712 \
         -t ${THREADS} \
         -i ${ASSEMBLED_FASTA} \
         -a ${METABAT_DEPTH_FILE} \
-        -o ${METABAT_OUTPUT_DIR}
+        -o ${METABAT_OUTPUT_DIR}/${SAMPLE_NAME}
 
 ###############################################################################
 # Run SeqKit for fasta stats
@@ -126,3 +132,27 @@ docker container run --rm \
         --out_dir ${GTDB_DATA_PATH}/${GTDB_OUTPUT_DIR}
 
 ###############################################################################
+
+# Compare sketch to NCBI
+find ${METABAT_OUTPUT_DIR} -name "${SAMPLE_NAME}.*.${BIN_FASTA_EXT}" |\
+parallel -j ${THREADS} \
+    "docker container run --rm \
+        --workdir $(pwd) \
+        --volume $(pwd):$(pwd) \
+        ${BBMAP_DOCKER_IMAGE}:${BBMAP_DOCKER_VERSION} \
+        sendsketch.sh \
+            in={} \
+            out={.}.sketch \
+            overwrite=t"
+
+###############################################################################
+
+# Extract rrna
+find ${METABAT_OUTPUT_DIR} -name "${SAMPLE_NAME}.*.${BIN_FASTA_EXT}" |\
+parallel -j ${THREADS} \
+    "docker container run --rm \
+        --workdir $(pwd) \
+        --volume $(pwd):$(pwd) \
+        ${BARRNAP_DOCKER_IMAGE}:${BARRNAP_DOCKER_VERSION} \
+        barrnap --threads 1 \
+            -o ${BARRNAP_OUTPUT_DIR}/{/.}.rrna.${BIN_FASTA_EXT} {} > ${BARRNAP_OUTPUT_DIR}/{/.}.rrna.gff"

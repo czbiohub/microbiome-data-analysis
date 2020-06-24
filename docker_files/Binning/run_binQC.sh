@@ -16,7 +16,13 @@ CHECKM_DOCKER_IMAGE="quay.io/biocontainers/checkm-genome"
 CHECKM_DOCKER_VERSION="1.1.2--py_1"
 
 GTDB_DOCKER_IMAGE="ecogenomic/gtdbtk"
-GTDB_DOCKER_VERSION="1.1.1"
+GTDB_DOCKER_VERSION="1.2.0"
+
+BBMAP_DOCKER_IMAGE="quay.io/biocontainers/bbmap"
+BBMAP_DOCKER_VERSION="38.79--h516909a_0"
+
+BARRNAP_DOCKER_IMAGE="quay.io/biocontainers/barrnap"
+BARRNAP_DOCKER_VERSION="0.9--3"
 
 QUAST_DOCKER_IMAGE="quay.io/biocontainers/quast"
 QUAST_DOCKER_VERSION="5.0.2--1"
@@ -36,10 +42,11 @@ GTDB_OUTPUT_DIR="${SAMPLE_NAME}/GTDBtk"
 GTDB_DB_PATH="/refdata"
 GTDB_DATA_PATH="/data"
 
+BARRNAP_OUTPUT_DIR="${SAMPLE_NAME}/barrnap"
 QUAST_OUTPUT_DIR="${SAMPLE_NAME}/quast"
 
+mkdir -p ${STATS_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR} ${BARRNAP_OUTPUT_DIR} ${QUAST_OUTPUT_DIR}
 
-mkdir -p ${STATS_DIR} ${CHECKM_OUTPUT_DIR} ${GTDB_OUTPUT_DIR} ${QUAST_OUTPUT_DIR}
 ###############################################################################
 # Run SeqKit for fasta stats
 docker container run --rm \
@@ -97,8 +104,6 @@ docker container run --rm \
 	-o ${QUAST_OUTPUT_DIR} \
 	${BIN_DIR}/*.${BIN_FASTA_EXT} 
 
-
-
 # # Keep Genes and Proteins
 # mkdir -p ${SAMPLE_NAME}/orfs/{genes,proteins}
 # find ${GTDB_OUTPUT_DIR} -name '*_protein.fna' | parallel "cp {} ${SAMPLE_NAME}/orfs/genes/"
@@ -110,3 +115,27 @@ docker container run --rm \
 # grep -c '>' ${SAMPLE_NAME}/orfs/genes/*_protein.fna | \
 #     sed -e 's/_protein.fna:/\t/' -e "s#${SAMPLE_NAME}/orfs/genes/##" > ${SAMPLE_NAME}/orfs/num_genes.txt
 ###############################################################################
+
+# Compare sketch to NCBI
+find ${BIN_DIR} -name "${SAMPLE_NAME}.*.${BIN_FASTA_EXT}" |\
+parallel -j ${THREADS} \
+    "docker container run --rm \
+        --workdir $(pwd) \
+        --volume $(pwd):$(pwd) \
+        ${BBMAP_DOCKER_IMAGE}:${BBMAP_DOCKER_VERSION} \
+        sendsketch.sh \
+            in={} \
+            out={.}.sketch \
+            overwrite=t"
+
+##############################################################################################################################################################
+
+# Extract rrna
+find ${BIN_DIR} -name "${SAMPLE_NAME}.*.${BIN_FASTA_EXT}" |\
+parallel -j ${THREADS} \
+    "docker container run --rm \
+        --workdir $(pwd) \
+        --volume $(pwd):$(pwd) \
+        ${BARRNAP_DOCKER_IMAGE}:${BARRNAP_DOCKER_VERSION} \
+        barrnap --threads 1 \
+            -o ${BARRNAP_OUTPUT_DIR}/{/.}.rrna.${BIN_FASTA_EXT} {} > ${BARRNAP_OUTPUT_DIR}/{/.}.rrna.gff"
