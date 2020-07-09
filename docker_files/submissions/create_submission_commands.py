@@ -318,10 +318,10 @@ commands = seed_df.apply(
     lambda row: submit_job(name=row["sampleName"], fwd=row["R1"], rev=row["R2"]), axis=1
 ).dropna(axis="index")
 commands.to_csv(aegea_cmd_file, header=False, index=False)
-nrows, _ = commands.shape
+nrows = commands.shape[0]
 print(f"{nrows} commands written to {aegea_cmd_file}")
 
-if arguments.xfer and (commands.shape[0] > 0):
+if arguments.xfer and (nrows > 0):
     aegea_cmd_filename = os.path.basename(aegea_cmd_file)
     fs.put(aegea_cmd_file, f"{out_s3path}/{aegea_cmd_filename}")
 
