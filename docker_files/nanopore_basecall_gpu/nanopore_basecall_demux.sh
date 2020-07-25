@@ -1,41 +1,48 @@
 #!/bin/bash
 
 ####################################################################
-# nanopore_basecall_demux_wrapper.sh
-#
-#
-# This script is used in conjunction with aegea batch (aegea_batch_basecall.sh).
+# nanopore_basecall_demux.sh
 #
 # Variables required from sourcing script
-# NANOPORE_RUNPATH, RUN_NAME, DATA_DEST,
-# coreNum, barcoded, flowcell, kit, barcodekit
+# NANOPORE_RUNPATH, RUN_NAME
 #
 # Revision History:
 # 2019.03.12 - created by Bryan Merrill
 # 2019.08.28 - Dockerized
 # 2020.02.04 - Adapting for basecall into czb-seqbot
+# 2020.06.28 - Combined guppy_basecaller and guppy_barcoder calls. Streamlined code
+# 2020.06.30 - Added --trim_barcodes --num_extra_bases_trim 2 for only barcoded demux
+#              this is because guppy currently does not support adapter removal for non barcoded molecules
+# 2020.07.02 - Add porechop functions and combine output fastq.gz
+# 2020.07.03 - Added python script sample_sheet_process.py to do porechop.
+#              Returns only 1 fastq.gz file for each barcode. If the barcode is in the sample sheet,
+#              then the name of the file is Sample_Name.
 #
 #####################################################################
 
 echo "**** START ****"
 set -euo pipefail
 START_TIME=$SECONDS
-
 LOCAL=$(pwd)
-# The next two lines are necessary because there are two different /mnt locations
-# Without this odd copy step, Snakemake fails (other things do too).
-# cp -pr * $LOCAL/
-# cd $LOCAL
+NANOPORE_RUNPATH=${NANOPORE_RUNPATH:-s3://czb-seqbot/nanopore}
+coreNum=${coreNum:-8}
+guppy_threads=4
+guppy_callers=$(( $coreNum / $guppy_threads ))
 
-# export PATH="/opt/conda/bin:${PATH}"
+# Import samplesheet from S3
+echo "Importing nanopore samplesheet ..."
+# aws s3 cp s3://czb-seqbot/nanopore/nanopore-samplesheets/${RUN_NAME}.csv .
+python sample_sheet_process.py --trial -t ${coreNum} -i ${RUN_NAME}.csv
 
-coreNum=${coreNum:-16}
-NANOPORE_RUNPATH=${NANOPORE_RUNPATH:-s3://czb-seqbot/nanopore} # UPDATE!!!
-flowcell=${flowcell:-FLO-MIN106}
-kit=${kit:-SQK-LSK109}
-barcodekit=${barcodekit:-EXP-NBD104}
-# Write something to remove trailing slashes from NANOPORE_RUNPATH, RUN_NAME, and DATA_DEST.
-
+# extract run parameters from sample sheet.
+flowcell=$( grep -m1 "Flow Cell" ${RUN_NAME}.csv | cut -d, -f2 ) # ${flowcell:-FLO-MIN106}
+kit=$( grep -m1 "Kit" ${RUN_NAME}.csv | cut -d, -f2 ) # ${kit:-SQK-LSK109}
+barcoded=$( grep -m1 "Barcoded" ${RUN_NAME}.csv | cut -d, -f2 )
+if [ $barcoded == "yes" ]; then
+  barcodekit=$( grep -m1 "Barcode Kit" ${RUN_NAME}.csv | cut -d, -f2 ) # ${barcodekit:-EXP-NBD104 EXP-NBD114} # default is to find both kits
+fi
+guppy_threads=4
+guppy_callers=$(( $coreNum / $guppy_threads ))
 
 echo "Downloading nanopore fast5 files..."
 aws s3 sync ${NANOPORE_RUNPATH}/${RUN_NAME}/ ${RUN_NAME}/ --quiet
@@ -43,52 +50,41 @@ echo "Download complete."
 
 # Find all fast5 files and dump in new directory
 mkdir -p raw_fast5
-# Comment the line below if testing the script
 mv `find ${RUN_NAME}/ -name "*.fast5"` raw_fast5/
-# Uncomment line below if testing the script. Uncommenting the line will make things run fast enough to do debugging.
-# mv `find ${RUN_NAME}/ -name "*.fast5" | head -n 2` raw_fast5/
-# PROCESSING THE FILES
-## Running guppy basecaller
-guppy_threads=4
-guppy_callers=$(( $coreNum / $guppy_threads ))
-guppy_basecaller -i raw_fast5/ -s guppy_fastqs --flowcell $flowcell --kit $kit -x "cuda:0" #--cpu_threads_per_caller ${guppy_threads} --num_callers ${guppy_callers}
 
-## Combining fastq files into one
-mkdir fastq_concat
-cat guppy_fastqs/*.fastq > fastq_concat/fastq_runid_000000000000_0.fastq
+## Creating output directory
+mkdir -p 00_MinIONQC
+mkdir -p 01_BASECALLED
+mkdir -p guppy_fastqs
 
-## Running QC on the output summary file
-mkdir 00_MinIONQC
-Rscript MinIONQC.R -i guppy_fastqs/sequencing_summary.txt -o 00_MinIONQC -p guppy_threads -s FALSE
-cp -p guppy_fastqs/sequencing_summary.txt 00_MinIONQC/
-
-## If run has barcodes, do demultiplexing
-mkdir 01_BASECALLED
-if [ $barcoded == "yes" ]; then
-  guppy_barcoder -r -i fastq_concat -s 01_BASECALLED -t $coreNum --barcode_kits $barcodekit 2> 00_MinIONQC/barcoder.err 1> 00_MinIONQC/barcoder.out
-fi
-
+## If not running with barcode
 if [ $barcoded == "no" ]; then
-  mv fastq_concat 01_BASECALLED/barcode00
+  guppy_basecaller -i raw_fast5/ -s guppy_fastqs --flowcell $flowcell --kit $kit -x "cuda:0" --num_callers ${guppy_callers} --compress_fastq 2> 00_MinIONQC/barcoder.err 1> 00_MinIONQC/barcoder.out
+  mkdir guppy_fastqs/barcode00
+  mv guppy_fastqs/*.fastq.gz guppy_fastqs/barcode00/
+fi
+# If running with barcode
+if [ $barcoded == "yes" ]; then
+  guppy_basecaller -i raw_fast5/ -s guppy_fastqs --flowcell $flowcell --kit $kit -x "cuda:0" --num_callers ${guppy_callers} --trim_barcodes --num_extra_bases_trim 2 --barcode_kits "$barcodekit" --compress_fastq 2> 00_MinIONQC/barcoder.err 1> 00_MinIONQC/barcoder.out
 fi
 
-pigz 01_BASECALLED/barcode*/*.fastq
+# Running QC on the output summary file
+# -p $guppy_threads number of processors only useful if analyzing more than 1 summary file
+Rscript MinIONQC.R -i guppy_fastqs/sequencing_summary.txt -o 00_MinIONQC -s FALSE
+cp guppy_fastqs/sequencing_summary.txt 00_MinIONQC/
+cp guppy_fastqs/sequencing_telemetry.js 01_BASECALLED/
 
-for dir in `ls -d 01_BASECALLED/barcode*/`; do
-  barcode=`echo $dir | sed 's|01_BASECALLED/barcode||;s|/||'`
-  for file in `ls $dir*`; do
-    newname=${RUN_NAME}__barcode${barcode}__`echo $file | awk -F'_' '{print $5}'`; mv $file $dir$newname
-  done
-done
+# Change the files names to be the RUN_NAME
+python sample_sheet_process.py -t ${coreNum} -i ${RUN_NAME}.csv
 
-
+# Sync files back to S3
 for folder in 00_MinIONQC 01_BASECALLED; do
-  aws s3 sync $folder ${DATA_DEST}/${RUN_NAME}/$folder/;
+  aws s3 sync --quiet $folder ${NANOPORE_RUNPATH}/${RUN_NAME}/$folder/
 done
 
 echo "File transfer complete."
 pwd
-echo "Nanopore basecalling pipeline completed."
+echo "Nanopore basecalling and trim pipeline completed."
 ls $LOCAL
 du -sh $LOCAL
 date

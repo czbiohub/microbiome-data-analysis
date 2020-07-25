@@ -37,6 +37,7 @@ RUN conda init bash && \
     conda config --add channels bioconda && \
     conda update -n base -c defaults -y -q conda && \
     conda install -y -c conda-forge awscli && \
+    conda install -y -c bioconda porechop && \
     conda install -y -c r r-base && \
     Rscript install_packages.R && \
     wget https://raw.githubusercontent.com/roblanf/minion_qc/master/MinIONQC.R -O /mnt/MinIONQC.R && \
