@@ -1,45 +1,90 @@
-{ 
-    "midas" : {
-        "memory" : 8000,
-        "image" : "sunitjain/midas",
-        "version" : "20191118141332",
-        "queue" : "microbiome-lowPriority",
-        "cpu" : 4,
-        "storage" : 500,
-        "data_mount" : "/mnt",
-        "script" : "./run_midas.sh",
-        "retries" : 5
+{
+    "readqc": {
+        "memory": 8000,
+        "image": "sunitjain/readqc",
+        "version": "20200121211135",
+        "queue": "fischbach__spot100",
+        "cpu": 4,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./run_readqc.sh",
+        "retries": 5
     },
-    "iggsearch" : {
-        "memory" : 16000,
-        "image" : "sunitjain/iggsearch",
-        "version" : "20191009134554",
-        "queue" : "microbiome-lowPriority",
-        "cpu" : 8,
-        "storage" : 500,
-        "data_mount" : "/mnt",
-        "script" : "./run_iggsearch.sh",
-        "retries" : 5
+    "bowtie2": {
+        "memory": 32000,
+        "image": "sunitjain/bowtie2",
+        "version": "20200212111032",
+        "queue": "fischbach__spot100",
+        "cpu": 16,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./run_bowtie2.sh",
+        "retries": 5
     },
-    "ninjamap" : {
-        "memory" : 64000,
-        "image" : "sunitjain/ninjamap",
-        "version" : "latest",
-        "queue" : "microbiome-highPriority",
-        "cpu" : 8,
-        "storage" : 500,
-        "data_mount" : "/mnt",
-        "script" : "./ninjaMap_index.sh",
-	"retries" : 1
+    "midas": {
+        "memory": 16000,
+        "image": "sunitjain/midas",
+        "version": "20191119142538",
+        "queue": "fischbach__spot100",
+        "cpu": 8,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./run_midas.sh",
+        "retries": 5
     },
-    "nm_mates" : {
-        "memory" : 64000,
-        "image" : "sunitjain/ninjamap",
-        "version" : "latest",
-        "queue" : "microbiome-highPriority",
-        "cpu" : 8,
-        "storage" : 500,
-        "data_mount" : "/mnt",
-        "script" : "./ninjaMap_mate.sh"
+    "iggsearch": {
+        "memory": 16000,
+        "image": "sunitjain/iggsearch",
+        "version": "20191009134554",
+        "queue": "fischbach__spot100",
+        "cpu": 8,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./run_iggsearch.sh",
+        "retries": 5
+    },
+    "ninjamap": {
+        "memory": 128000,
+        "image": "sunitjain/ninjamap",
+        "version": "20200425142151",
+        "queue": "microbiome-highPriority",
+        "cpu": 15,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./ninjaMap_index.sh",
+        "retries": 1
+    },
+    "mates": {
+        "memory": 64000,
+        "image": "sunitjain/ninjamap",
+        "version": "20191119143351",
+        "queue": "fischbach__spot100",
+        "cpu": 8,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./ninjaMap_mate.sh",
+        "retries": 5
+    },
+    "mash": {
+        "memory": 16000,
+        "image": "sunitjain/mash",
+        "version": "20200122233144",
+        "queue": "fischbach__spot100",
+        "cpu": 8,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./run_mash.sh",
+        "retries": 5
+    },
+    "humann2": {
+        "memory": 64000,
+        "image": "sunitjain/humann2",
+        "version": "20200618085314",
+        "queue": "fischbach__spot100",
+        "cpu": 15,
+        "storage": 500,
+        "data_mount": "/mnt",
+        "script": "./run_humann2.sh",
+        "retries": 5
     }
 }

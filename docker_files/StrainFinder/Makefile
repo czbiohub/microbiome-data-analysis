@@ -1,11 +1,11 @@
-NAME=gtdbtk
+NAME=strainfinder
 TAG:=$(shell /bin/date +%Y%m%d%H%M%S)
 REGISTRY=sunitjain/$(NAME)
 
 all: build push run
 
 build:
-	docker image build --pull --no-cache -t $(NAME):$(TAG) -t $(NAME):latest -f Dockerfile .
+	docker image build -t $(NAME):$(TAG) -t $(NAME):latest -f Dockerfile .
 	docker image tag $(NAME):latest $(REGISTRY):latest
 	docker image tag $(NAME):$(TAG) $(REGISTRY):$(TAG)
 	
