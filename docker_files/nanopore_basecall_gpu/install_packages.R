@@ -1,0 +1,10 @@
+install.packages(c("data.table",
+                  "futile.logger",
+                  "ggplot2",
+                  "optparse",
+                  "plyr",
+                  "readr",
+                  "reshape2",
+                  "scales",
+                  "viridis",
+                  "yaml"), repos='https://cran.rstudio.com/', dep=TRUE)
