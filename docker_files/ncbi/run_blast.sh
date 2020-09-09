@@ -4,18 +4,20 @@ set -e
 set -u
 set -o pipefail
 
+TASK=${TASK:-"blastn"}
+QUERY_EXT=${QUERY_EXT:-".fna"}
+THREADS=${THREADS:-3}
+
 QUERY_PATH=${1}
-RESULTS_PATH=$(echo "${QUERY_PATH}" | sed -e 's/queries/results/' -e 's/.fasta/.blastn.archive/')
+LOCAL_DB=${2:-"/home/ec2-user/efs/docker/PacBio/Assemblies/BLAST/UHGGdb/extended_db/UHGG_isolates_ext"}
+RESULTS_PATH=$(echo "${QUERY_PATH}" | sed -e "s/queries/results/" -e "s/${QUERY_EXT}/.${TASK}.archive/")
 
-BASE_PATH="/home/ec2-user/efs/docker/PacBio/Assemblies/BLAST/UHGGdb"
-
+# BASE_PATH="/home/ec2-user/efs/docker/PacBio/Assemblies/BLAST/UHGGdb"
 # LOCAL_DB="${BASE_PATH}/db/UHGG_isolates"
-LOCAL_DB="${BASE_PATH}/extended_db/UHGG_isolates_ext"
+# LOCAL_DB="${BASE_PATH}/extended_db/UHGG_isolates_ext"
+BASE_PATH=$(pwd)
 LOCAL_QUERY_FASTA="${BASE_PATH}/${QUERY_PATH}"
 LOCAL_RESULT_FILE="${BASE_PATH}/${RESULTS_PATH}"
-
-TASK="blastn"
-THREADS=20
 
 LOCAL_DB_DIR="$(dirname ${LOCAL_DB})"
 DBNAME="$(basename ${LOCAL_DB})"
@@ -67,4 +69,4 @@ docker container run --rm \
         blast_formatter \
             -archive ${DOCKER_RESULTS_DIR}/${RESULTS_FILE_NAME} \
             -outfmt '6 std qlen slen qcovs' \
-            -out ${DOCKER_RESULTS_DIR}/${RESULTS_FILE_NAME}.outFmt_6.txt
+            -out ${DOCKER_RESULTS_DIR}/${RESULTS_FILE_NAME}.outFmt_6.tsv
