@@ -4,23 +4,23 @@ from Bio import SeqIO
 
 infile = sys.argv[1]
 prefix = sys.argv[2]
-outdir = sys.argv[3].rstrip('/')
+outdir = sys.argv[3].rstrip("/")
+suffix = sys.argv[4]
 
-outfile = f'{outdir}/{prefix}.fasta'
-# print(f'#{outfile}')
+outfile = f"{outdir}/{prefix}.{suffix}"
 
 complete = incomplete = 0
 with open(outfile, "w") as output_handle:
     for record in SeqIO.parse(infile, "fasta"):
         if "partial=00" in record.description:
             complete += 1
-            record.id = f'{prefix}__{record.id}'
+            record.id = f"{prefix}__{record.id}"
             SeqIO.write(record, output_handle, "fasta")
         else:
             incomplete += 1
             # print(f'{record.id} {record.description}')
 
-print(f'{prefix}\t{complete}\t{incomplete}')
+print(f"{prefix}\t{complete}\t{incomplete}")
 
 # python3 scripts/01_filter_alignments.py \
 #     -bam /mnt/data/PacBio/minimap/Mixture/alignment/bam/m64069_200107_192940.subreads.bam.ccs_vs_SCv2_index.sortedByCoord.bam \
