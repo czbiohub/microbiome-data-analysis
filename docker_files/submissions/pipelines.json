@@ -77,14 +77,14 @@
         "retries": 5
     },
     "humann2": {
-        "memory": 64000,
+        "memory": 120000,
         "image": "sunitjain/humann2",
-        "version": "20200618085314",
+        "version": "20200910125525",
         "queue": "fischbach__spot100",
         "cpu": 15,
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_humann2.sh",
-        "retries": 5
+        "retries": 3
     }
 }
