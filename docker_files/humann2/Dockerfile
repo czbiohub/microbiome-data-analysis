@@ -6,7 +6,7 @@ USER root:root
 ENV PATH "/opt/conda/bin:$PATH"
 
 # Install dependencies
-RUN conda install --freeze-installed -c conda-forge -yq awscli \
+RUN conda install --freeze-installed -c conda-forge -yq awscli glpk \
       && conda install --freeze-installed -c bioconda -yq humann2 \
       && conda clean -afy
 
