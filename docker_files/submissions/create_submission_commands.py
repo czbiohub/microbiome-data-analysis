@@ -85,6 +85,7 @@ p.add_argument(
 ## AWS Logistics
 p.add_argument("--to_aws", dest="xfer", action="store_true")
 p.add_argument("--yes", dest="no_confirmation", action="store_true")
+# p.add_argument("--se", dest="single_ended", action="store_true")
 p.add_argument("--image", dest="image_name", action="store", type=str)
 p.add_argument("--image_version", dest="image_version", action="store", type=str)
 p.add_argument("--queue", dest="queue", action="store", type=str)
@@ -219,7 +220,7 @@ fs = s3fs.S3FileSystem(anon=False)
 def submit_job(
     name,
     fwd,
-    rev,
+    rev=None,
     s3output=out_s3path,
     job_queue=queue,
     img_version=version,
@@ -244,7 +245,9 @@ def submit_job(
         complete = fs.exists(f"{s3output_path}/job.complete")
 
     if not complete:
-        execute_cmd = f"{extra}export coreNum={job_cpu};export memPerCore={memoryPerCore};export fastq1={fwd};export fastq2={rev};export S3OUTPUTPATH={s3output_path}; {job_script}"
+        execute_cmd = f"{extra}export coreNum={job_cpu};export memPerCore={memoryPerCore};export fastq1={fwd};export S3OUTPUTPATH={s3output_path}; {job_script}"
+        if rev is not None:
+            execute_cmd = f"{execute_cmd};export fastq2={rev};"
         aegea_cmd = f"aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command='{execute_cmd}'"
 
     return aegea_cmd
@@ -262,7 +265,7 @@ if arguments.seedfile:
         seed_df["sampleName"]
     except KeyError as e:
         print(f"[FATAL] {e}")
-        print(df.sample(10))
+        print(seed_df.sample(10))
         sys.exit(1)
     finally:
         print(f"Sample:\n{seed_df.head(5)}")
@@ -313,10 +316,15 @@ else:
 
 # Handle special characters in Sample Names
 seed_df["sampleName"] = seed_df["sampleName"].map(lambda x: re.sub(r"\W+", "-", x))
+if "R2" in seed_df.columns:
+    commands = seed_df.apply(
+        lambda row: submit_job(name=row["sampleName"], fwd=row["R1"], rev=row["R2"]), axis=1
+    ).dropna(axis="index")
+else:
+    commands = seed_df.apply(
+        lambda row: submit_job(name=row["sampleName"], fwd=row["R1"]), axis=1
+    ).dropna(axis="index")
 
-commands = seed_df.apply(
-    lambda row: submit_job(name=row["sampleName"], fwd=row["R1"], rev=row["R2"]), axis=1
-).dropna(axis="index")
 commands.to_csv(aegea_cmd_file, header=False, index=False)
 nrows = commands.shape[0]
 print(f"{nrows} commands written to {aegea_cmd_file}")
