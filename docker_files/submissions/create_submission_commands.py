@@ -245,9 +245,10 @@ def submit_job(
         complete = fs.exists(f"{s3output_path}/job.complete")
 
     if not complete:
-        execute_cmd = f"{extra}export coreNum={job_cpu};export memPerCore={memoryPerCore};export fastq1={fwd};export S3OUTPUTPATH={s3output_path}; {job_script}"
+        execute_cmd = f"{extra}export coreNum={job_cpu};export memPerCore={memoryPerCore};export fastq1={fwd};export S3OUTPUTPATH={s3output_path}"
         if rev is not None:
-            execute_cmd = f"{execute_cmd};export fastq2={rev};"
+            execute_cmd = f"{execute_cmd}; export fastq2={rev}"
+        execute_cmd = f"{execute_cmd}; {job_script};"
         aegea_cmd = f"aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command='{execute_cmd}'"
 
     return aegea_cmd
