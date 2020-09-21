@@ -8,7 +8,7 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_readqc.sh",
-        "retries": 5
+        "retries": 3
     },
     "bowtie2": {
         "memory": 32000,
@@ -19,7 +19,7 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_bowtie2.sh",
-        "retries": 5
+        "retries": 3
     },
     "midas": {
         "memory": 16000,
@@ -30,7 +30,7 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_midas.sh",
-        "retries": 5
+        "retries": 3
     },
     "iggsearch": {
         "memory": 16000,
@@ -41,7 +41,7 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_iggsearch.sh",
-        "retries": 5
+        "retries": 3
     },
     "ninjamap": {
         "memory": 128000,
@@ -63,7 +63,7 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./ninjaMap_mate.sh",
-        "retries": 5
+        "retries": 3
     },
     "mash": {
         "memory": 16000,
@@ -74,7 +74,7 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_mash.sh",
-        "retries": 5
+        "retries": 3
     },
     "humann2": {
         "memory": 120000,
