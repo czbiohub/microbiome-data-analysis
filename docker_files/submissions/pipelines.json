@@ -19,7 +19,13 @@
         "storage": 500,
         "data_mount": "/mnt",
         "script": "./run_bowtie2.sh",
-        "retries": 3
+        "retries": 3,
+        "extras":{
+            "S3DBFASTA":"S3 Path to a fasta file to align the reads against, database will be built on the fly. Either this or 'S3DBPREFIX' variables are required",
+            "S3DBPREFIX":"S3 path to a pre-compiled Bowtie2 database prefix (do not include extension). Either this or 'S3DBFASTA' variables are required",
+            "SKIP_QC":"true/false Whether the input needs to be QC-ed. Default=true",
+            "DUP_REMOVAL":"true/false Whether PCR duplicates should be marked and removed from the final output. Default=false"
+        }
     },
     "midas": {
         "memory": 16000,
