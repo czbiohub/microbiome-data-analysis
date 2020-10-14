@@ -335,10 +335,10 @@ if __name__ == "__main__":
             seed_df = df.pivot(
                 index="sampleName", columns="Orientation", values="FilePaths"
             )
-        except e:
-            print(f"[FATAL] {e}")
-            print(df.sample(10))
-            sys.exit(1)
+        # except _ as e:
+        #     print(f"[FATAL] {e}")
+        #     print(df.sample(10))
+        #     sys.exit(1)
         finally:
             print(f"Sample:\n{seed_df.head(5)}")
 
