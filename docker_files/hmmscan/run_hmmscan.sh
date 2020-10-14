@@ -1,4 +1,6 @@
 #!/bin/bash -x
+# shellcheck disable=SC2086 
+# shellcheck disable=SC2046
 # USAGE: ls Fasta/ | parallel -j 10 --joblog hmmscan.joblog "bash run_hmmscan.sh {.} Proteins/{.}_protein.faa" &> run_hmmscan.log &
 
 set -euo pipefail
