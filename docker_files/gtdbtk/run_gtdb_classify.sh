@@ -6,7 +6,7 @@ set -u
 set -o pipefail
 
 DOCKER_IMAGE="ecogenomic/gtdbtk"
-DOCKER_VERSION="1.1.0"
+DOCKER_VERSION="1.1.1"
 
 TASK="classify_wf"
 THREADS=5
