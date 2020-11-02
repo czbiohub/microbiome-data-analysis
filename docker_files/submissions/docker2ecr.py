@@ -89,8 +89,8 @@ def main(local_image_name, ecr_image_name, image_tag, lab_of):
         logging.info(line)
 
     if cleanup_required:
-        docker_client.images.remove(image="{ecr_uri}:{image_tag}")
-        docker_client.images.remove(image="{local_image_name}:{image_tag}")
+        docker_client.images.remove(image=f"{ecr_uri}:{image_tag}")
+        docker_client.images.remove(image=f"{local_image_name}:{image_tag}")
 
     logging.info(f"You may try: '{ecr_uri}:{image_tag}'")
 
