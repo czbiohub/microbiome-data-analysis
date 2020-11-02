@@ -8,7 +8,7 @@ A simple script that deploys an existing local or remote docker image
 repository to your ECR account.
 
 USAGE:
-python docker2ecr.py local_image_name ecr_image_name image_tag fischbach lab_of
+python docker2ecr.py local_image_name ecr_image_name image_tag lab_of
 
 Example 1: When you don't have an image on your system. Script downloads
 the docker image:tag based on input
