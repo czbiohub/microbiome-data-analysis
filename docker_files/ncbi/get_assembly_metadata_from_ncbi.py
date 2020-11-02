@@ -79,6 +79,7 @@ def get_assembly_records(term, email):
 
 def guess_latest_assembly(records):
     latest_records = set()
+    uid= ''
     summaries_list = (get_assembly_summary(unique_id) for unique_id in records)
     for summary in summaries_list:
         # If this is empty, means this is the latest assembly
