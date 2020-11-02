@@ -5,7 +5,7 @@ set -u
 set -o pipefail
 
 TASK="cd-hit-est"
-THREADS=15
+THREADS=0
 DOCKER_IMAGE=quay.io/biocontainers/cd-hit
 DOCKER_VERSION=4.8.1--h8b12597_3
 

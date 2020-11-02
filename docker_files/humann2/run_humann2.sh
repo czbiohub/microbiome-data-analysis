@@ -16,7 +16,6 @@ LOCAL_DB_PATH=${LOCAL}/databases
 # fastq1=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R1_001.fastq.gz
 # fastq2=s3://czbiohub-brianyu/Original_Sequencing_Data/180727_A00111_0179_BH72VVDSXX/Alice_Cheng/Strain_Verification/Dorea-longicatena-DSM-13814_S275_R2_001.fastq.gz
 # S3OUTPUTPATH=s3://czbiohub-microbiome/Sunit_Jain/Synthetic_Community/Bowtie2_Test/Dorea-longicatena-DSM-13814
-# S3DBPREFIX=s3://czbiohub-microbiome/Synthetic_Community/Genome_References/ncbi_fasta/Dorea-longicatena-DSM-13814-GCF_000154065.1_ASM15406v1
 
 S3DBPATH=${S3DBPATH:-"s3://czbiohub-microbiome/ReferenceDBs/Humann2"}
 DEFAULT_MP_DB_PATH="/opt/conda/bin/metaphlan_databases"
