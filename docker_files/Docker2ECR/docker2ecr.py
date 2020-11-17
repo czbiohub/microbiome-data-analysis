@@ -45,6 +45,7 @@ def main(local_image_name, ecr_image_name, image_tag, lab_of):
     logging.info("Making sure all tags and permissions are in order ...")
     ecr_repo_name, repo_tags = namespace_check(lab_of, ecr_image_name)
 
+    logging.info("All tags and permissions are in order ...")
     docker_client = docker.from_env()
     image, cleanup_required = get_image(docker_client, local_image_name, image_tag)
 
