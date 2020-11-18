@@ -16,6 +16,7 @@ import sys
 import pandas as pd
 import s3fs
 
+
 def parse_user_input():
     usage = "python create_submission_commands.py   --seed seedfile.txt \
                                                     --s3_output s3://czbiohub-microbiome/My_Lab/My_Name/My_Project/ \
@@ -141,20 +142,22 @@ def parse_user_input():
             params = json.load(pipeline_defaults)[pipeline]
         except KeyError as e:
             print(
-            f"[FATAL] This script has not been configured to be used for {pipeline}.\nPlease update {arguments.config_file} and try again."
+                f"[FATAL] This script has not been configured to be used for {pipeline}.\nPlease update {arguments.config_file} and try again."
             )
             sys.exit(1)
 
     # Ask for required variables
-    set_of_params=set()
+    set_of_params = set()
     if "extras" in params:
-        print(f"The {pipeline} pipeline can make use of additional variables, please provide their values below.")
+        print(
+            f"The {pipeline} pipeline can make use of additional variables, please provide their values below."
+        )
         print(f"NOTE: Not all variables may be required, hit 'return', for no value")
         for variable, description in params["extras"].items():
             user_value = input(f"\t'{variable}' ({description}):\n\t")
             if user_value == "":
                 continue
-            params.update({variable:user_value})
+            params.update({variable: user_value})
             set_of_params.add(variable)
 
     # Set Defaults
@@ -178,27 +181,33 @@ def parse_user_input():
     for key, value in params.items():
         if key == "extras":
             continue
-        
+
         set_of_params.add(key)
         if (key in args) and (args[key] is not None):
             if key == "storage":
-                params["storage"] = max(min_storage, args["storage"])        
+                params["storage"] = max(min_storage, args["storage"])
             elif key == "memory":
                 params["memory"] = min(max_memory, args["memory"])
             elif key == "cpus":
                 params["cpus"] = min(max_cpus, args["cpu"])
             else:
-                params.update({key:value})
+                params.update({key: value})
 
     if not arguments.no_confirmation:
         while True:
-            print("Please confirm that the following variables are set to your satisfaction:")
-            print("NOTE: Some values may have been adjusted to satisfy minimum requirements")
+            print(
+                "Please confirm that the following variables are set to your satisfaction:"
+            )
+            print(
+                "NOTE: Some values may have been adjusted to satisfy minimum requirements"
+            )
             for param in set_of_params:
                 print(f"\t{param} = {params[param]}")
             confirmed = input("Satisfied? [Y/n]: ")
             if confirmed == "n":
-                print("My apologies, please restart the script and try again... Exiting...")
+                print(
+                    "My apologies, please restart the script and try again... Exiting..."
+                )
                 sys.exit(0)
             elif confirmed == "Y":
                 print("Confirmed. Processing inputs ...")
@@ -216,53 +225,23 @@ def parse_user_input():
 
     return args, params
 
-# extra = None
-# if len(arguments.extraList) > 0:
-#     extraList = map(lambda x: str(x).rstrip(r";$"), arguments.extraList)
-#     extra = "".join([f"export {e};" for e in extraList])
-#     if not arguments.no_confirmation:
-#         while True:
-#             confirm = input(
-#                 f"""
-#         The following statement(s) will be added, as is to the export variables:
-
-#         {extra}
-
-#         Are you sure you wish to continue? [Y/n]
-#         """
-#             )
-#             if confirm == "n":
-#                 sys.exit(0)
-#             elif confirm == "Y":
-#                 print("Confirmed. Processing inputs ...")
-#                 break
-#             else:
-#                 print(
-#                     f'\n[Invalid Response] "{confirm}" is not a valid response. Please select either "Y" or "n" (case-sensitive)\nTry again:'
-#                 )
-# else:
-#     extra = ""
 
 def submit_job(
-    name,
-    fwd,
-    submission,
-    job,
-    rev=None,
+    name, fwd, submission, job, rev=None,
 ):
-    job_queue=job["queue"]
-    img_version=job["version"]
-    docker_image=job["image"]
-    job_storage=int(job["storage"])
-    job_cpu=int(job["cpu"])
-    job_memory=int(job["memory"])
-    job_attempts=int(job["retries"])
-    job_data_mount=job["data_mount"]
-    job_script=job["script"]
-    
-    s3output=submission["out_s3path"]
-    pipeline=submission["pipeline"]
-    overwrite=submission["overwrite"]
+    job_queue = job["queue"]
+    img_version = job["version"]
+    docker_image = job["image"]
+    job_storage = int(job["storage"])
+    job_cpu = int(job["cpu"])
+    job_memory = int(job["memory"])
+    job_attempts = int(job["retries"])
+    job_data_mount = job["data_mount"]
+    job_script = job["script"]
+
+    s3output = submission["out_s3path"]
+    pipeline = submission["pipeline"]
+    overwrite = submission["overwrite"]
 
     aegea_cmd = ""
     memoryPerCore = f"{int(job_memory/(job_cpu * 1000))}G"
@@ -272,17 +251,22 @@ def submit_job(
     else:
         complete = fs.exists(f"{s3output_path}/job.complete")
 
-    execute_cmd=""
-    if "extras" in job: # Do I need to look for other variables?
-        for extra in job["extras"]: # Which variables?
-            if extra in job: # Did user provide a value for this variable?
-                execute_cmd=f"export {extra}={job[extra]};" # Add the variable to the command
+    execute_cmds_list = list()
+    if "extras" in job:  # Do I need to look for other variables?
+        for extra in job["extras"]:  # Which variables?
+            if extra in job:  # Did user provide a value for this variable?
+                execute_cmds_list.append(f"export {extra}={job[extra]}")
 
     if not complete:
-        execute_cmd = f"{execute_cmd}export coreNum={job_cpu};export memPerCore={memoryPerCore};export fastq1={fwd};export S3OUTPUTPATH={s3output_path}"
+        execute_cmds_list.append(f"export coreNum={job_cpu}")
+        execute_cmds_list.append(f"export memPerCore={memoryPerCore}")
+        execute_cmds_list.append(f"export fastq1={fwd}")
+        execute_cmds_list.append(f"export S3OUTPUTPATH={s3output_path}")
         if rev is not None:
-            execute_cmd = f"{execute_cmd}; export fastq2={rev}"
-        execute_cmd = f"{execute_cmd}; {job_script};"
+            execute_cmds_list.append(f"export fastq2={rev}")
+
+        execute_cmds_list.append(f"{job_script}")
+        execute_cmd = ";".join(execute_cmds_list)
         aegea_cmd = f"aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command='{execute_cmd}'"
 
     return aegea_cmd
@@ -357,18 +341,34 @@ if __name__ == "__main__":
     seed_df["sampleName"] = seed_df["sampleName"].map(lambda x: re.sub(r"\W+", "-", x))
     if "R2" in seed_df.columns:
         commands = seed_df.apply(
-            lambda row: submit_job(name=row["sampleName"], fwd=row["R1"], rev=row["R2"], submission=submission_args, job=job_args), axis=1
+            lambda row: submit_job(
+                name=row["sampleName"],
+                fwd=row["R1"],
+                rev=row["R2"],
+                submission=submission_args,
+                job=job_args,
+            ),
+            axis=1,
         ).dropna(axis="index")
     else:
         commands = seed_df.apply(
-            lambda row: submit_job(name=row["sampleName"], fwd=row["R1"], submission=submission_args, job=job_args), axis=1
+            lambda row: submit_job(
+                name=row["sampleName"],
+                fwd=row["R1"],
+                submission=submission_args,
+                job=job_args,
+            ),
+            axis=1,
         ).dropna(axis="index")
 
-    commands.to_csv(submission_args['aegea_cmd'], header=False, index=False)
+    commands.to_csv(submission_args["aegea_cmd"], header=False, index=False)
     nrows = commands.shape[0]
     print(f"{nrows} commands written to {submission_args['aegea_cmd']}")
 
-    if submission_args['xfer'] and (nrows > 0):
-        aegea_cmd_filename = os.path.basename(submission_args['aegea_cmd'])
-        fs.put(submission_args['aegea_cmd'], f"{submission_args['out_s3path']}/{aegea_cmd_filename}")
+    if submission_args["xfer"] and (nrows > 0):
+        aegea_cmd_filename = os.path.basename(submission_args["aegea_cmd"])
+        fs.put(
+            submission_args["aegea_cmd"],
+            f"{submission_args['out_s3path']}/{aegea_cmd_filename}",
+        )
 
