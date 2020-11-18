@@ -12,7 +12,7 @@
     },
     "bowtie2": {
         "memory": 32000,
-        "image": "sunitjain/bowtie2",
+        "image": "423543210473.dkr.ecr.us-west-2.amazonaws.com/fischbach_lab/bowtie2",
         "version": "20200212111032",
         "queue": "fischbach__spot100",
         "cpu": 16,
@@ -20,16 +20,16 @@
         "data_mount": "/mnt",
         "script": "./run_bowtie2.sh",
         "retries": 3,
-        "extras":{
-            "S3DBFASTA":"S3 Path to a fasta file to align the reads against, database will be built on the fly. Either this or 'S3DBPREFIX' variables are required",
-            "S3DBPREFIX":"S3 path to a pre-compiled Bowtie2 database prefix (do not include extension). Either this or 'S3DBFASTA' variables are required",
-            "SKIP_QC":"true/false Whether the input needs to be QC-ed. Default=true",
-            "DUP_REMOVAL":"true/false Whether PCR duplicates should be marked and removed from the final output. Default=false"
+        "extras": {
+            "S3DBFASTA": "S3 Path to a fasta file to align the reads against, database will be built on the fly. Either this or 'S3DBPREFIX' variables are required",
+            "S3DBPREFIX": "S3 path to a pre-compiled Bowtie2 database prefix (do not include extension). Either this or 'S3DBFASTA' variables are required",
+            "SKIP_QC": "true/false Whether the input needs to be QC-ed. Default=true",
+            "DUP_REMOVAL": "true/false Whether PCR duplicates should be marked and removed from the final output. Default=false"
         }
     },
     "midas": {
         "memory": 16000,
-        "image": "sunitjain/midas",
+        "image": "423543210473.dkr.ecr.us-west-2.amazonaws.com/fischbach_lab/midas",
         "version": "20191119142538",
         "queue": "fischbach__spot100",
         "cpu": 8,
@@ -51,8 +51,8 @@
     },
     "ninjamap": {
         "memory": 128000,
-        "image": "sunitjain/ninjamap",
-        "version": "20200425142151",
+        "image": "423543210473.dkr.ecr.us-west-2.amazonaws.com/fischbach_lab/ninjamap",
+        "version": "20201102182302",
         "queue": "microbiome-highPriority",
         "cpu": 15,
         "storage": 500,
