@@ -113,7 +113,7 @@ def parse_user_input():
     p.add_argument(
         "--storage", dest="storage", action="store", type=int
     )  # the minimum for AWS is 500
-    p.add_argument("--retry", dest="max_retries", action="store", type=int)
+    p.add_argument("--retry", dest="retries", action="store", type=int)
 
     ## Tagging
     p.add_argument(
@@ -190,6 +190,8 @@ def parse_user_input():
                 params["memory"] = min(max_memory, args["memory"])
             elif key == "cpus":
                 params["cpus"] = min(max_cpus, args["cpu"])
+            elif key == "retries":
+                params["retries"] = min(params["retries"], args["retries"])
             else:
                 params.update({key: value})
 
@@ -257,7 +259,9 @@ def submit_job(
             if extra in job:  # Did user provide a value for this variable?
                 execute_cmds_list.append(f"export {extra}={job[extra]}")
 
-    if not complete:
+    if complete:
+        return None
+    else:
         execute_cmds_list.append(f"export coreNum={job_cpu}")
         execute_cmds_list.append(f"export memPerCore={memoryPerCore}")
         execute_cmds_list.append(f"export fastq1={fwd}")
@@ -267,7 +271,7 @@ def submit_job(
 
         execute_cmds_list.append(f"{job_script}")
         execute_cmd = ";".join(execute_cmds_list)
-        aegea_cmd = f"aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command='{execute_cmd}'"
+        aegea_cmd = f"aegea batch submit --retry-attempts {job_attempts} --name {pipeline}__{name} --queue {job_queue} --ecr-image {docker_image}:{img_version} --storage {job_data_mount}={job_storage} --memory {job_memory} --vcpus {job_cpu} --command='{execute_cmd}'"
 
     return aegea_cmd
 
@@ -361,7 +365,7 @@ if __name__ == "__main__":
             axis=1,
         ).dropna(axis="index")
 
-    commands.to_csv(submission_args["aegea_cmd"], header=False, index=False)
+    commands.dropna().to_csv(submission_args["aegea_cmd"], header=False, index=False)
     nrows = commands.shape[0]
     print(f"{nrows} commands written to {submission_args['aegea_cmd']}")
 
