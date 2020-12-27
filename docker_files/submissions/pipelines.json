@@ -12,7 +12,7 @@
     },
     "bowtie2": {
         "memory": 32000,
-        "image": "423543210473.dkr.ecr.us-west-2.amazonaws.com/fischbach_lab/bowtie2",
+        "image": "fischbach_lab/bowtie2",
         "version": "20200212111032",
         "queue": "fischbach__spot100",
         "cpu": 16,
@@ -29,7 +29,7 @@
     },
     "midas": {
         "memory": 16000,
-        "image": "423543210473.dkr.ecr.us-west-2.amazonaws.com/fischbach_lab/midas",
+        "image": "fischbach_lab/midas",
         "version": "20191119142538",
         "queue": "fischbach__spot100",
         "cpu": 8,
@@ -50,26 +50,20 @@
         "retries": 3
     },
     "ninjamap": {
-        "memory": 128000,
-        "image": "423543210473.dkr.ecr.us-west-2.amazonaws.com/fischbach_lab/ninjamap",
+        "memory": 244000,
+        "image": "fischbach_lab/ninjamap",
         "version": "20201102182302",
-        "queue": "microbiome-highPriority",
-        "cpu": 15,
-        "storage": 500,
-        "data_mount": "/mnt",
-        "script": "./ninjaMap_index.sh",
-        "retries": 1
-    },
-    "mates": {
-        "memory": 64000,
-        "image": "sunitjain/ninjamap",
-        "version": "20191119143351",
         "queue": "fischbach__spot100",
-        "cpu": 8,
-        "storage": 500,
+        "cpu": 31,
+        "storage": 1000,
         "data_mount": "/mnt",
-        "script": "./ninjaMap_mate.sh",
-        "retries": 3
+        "script": "./ninjaMap_index_2.sh",
+        "retries": 1,
+        "extras": {
+            "S3DBPATH": "S3 path to a pre-compiled Bowtie2 database",
+            "REFDBNAME": "Actual nam eprefix of the database at the S3DBPATH; example: SCv2_3",
+            "STRAIN_MAP_FILENAME": "S3 path to the binmap file for NinjaMap db"
+        }
     },
     "mash": {
         "memory": 16000,
