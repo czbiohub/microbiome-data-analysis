@@ -1,7 +1,7 @@
 {
     "readqc": {
         "memory": 8000,
-        "image": "sunitjain/readqc",
+        "image": "fischbach_lab/readqc",
         "version": "20200121211135",
         "queue": "fischbach__spot100",
         "cpu": 4,
@@ -78,7 +78,7 @@
     },
     "humann2": {
         "memory": 120000,
-        "image": "sunitjain/humann2",
+        "image": "fischbach_lab/humann2",
         "version": "20200910125525",
         "queue": "fischbach__spot100",
         "cpu": 15,
