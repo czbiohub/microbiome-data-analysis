@@ -19,9 +19,27 @@ import sys
 def generate_seedfile(inventory_df, samples_list, source_bucket):
     seedfile_list = list()
     for sample in samples_list:
-        fwd, rev = sorted(
-            inventory_df[inventory_df["key"].str.contains(sample, na=False)]["key"]
+        fwd, rev, *extra = sorted(
+            # inventory_df[inventory_df["key"][~(df.columns.str.endswith('Name') | df.columns.str.endswith('Code'))]]
+            inventory_df[
+                (
+                    (
+                        inventory_df["key"].str.endswith(".fastq.gz", na=False)
+                        | inventory_df["key"].str.endswith(".fq.gz", na=False)
+                    )
+                    & inventory_df["key"].str.contains(sample, na=False)
+                )
+            ]["key"]
         )
+        if len(extra) > 0:
+            logging.error(f"Error at sample: {sample}")
+            logging.error(f"Captured Forward Fastq: {fwd}")
+            logging.error(f"Captured Reverse Fastq: {rev}")
+            _ = [logging.error(f"Extra Fastqs: {e}") for e in extra]
+            raise Exception(
+                "Data does not conform to the expected read pair structure. Possible duplication of sample names."
+            )
+
         seedfile_list.append(
             {
                 "sampleName": sample,
