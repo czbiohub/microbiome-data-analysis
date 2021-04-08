@@ -19,18 +19,15 @@ import sys
 def generate_seedfile(inventory_df, samples_list, source_bucket):
     seedfile_list = list()
     for sample in samples_list:
-        fwd, rev, *extra = sorted(
-            # inventory_df[inventory_df["key"][~(df.columns.str.endswith('Name') | df.columns.str.endswith('Code'))]]
-            inventory_df[
-                (
-                    (
-                        inventory_df["key"].str.endswith(".fastq.gz", na=False)
-                        | inventory_df["key"].str.endswith(".fq.gz", na=False)
-                    )
-                    & inventory_df["key"].str.contains(sample, na=False)
-                )
-            ]["key"]
-        )
+        try:
+            fwd, rev, *extra = sorted(
+                # inventory_df[inventory_df["key"][~(df.columns.str.endswith('Name') | df.columns.str.endswith('Code'))]]
+                inventory_df[inventory_df["key"].str.contains(sample, na=False)]["key"]
+            )
+        except ValueError as v:
+            logging.error(f"Could not find sample: '{sample}'.")
+            raise Exception(v)
+
         if len(extra) > 0:
             logging.error(f"Error at sample: {sample}")
             logging.error(f"Captured Forward Fastq: {fwd}")
@@ -66,6 +63,25 @@ def split_s3uri(s3uri):
     return bucket, prefix
 
 
+def read_s3_inventory(bucket_name, file_name):
+    client = boto3.resource("s3")
+    object = client.Object(bucket_name, file_name)
+
+    buffer = io.BytesIO()
+    object.download_fileobj(buffer)
+    inventory = pd.read_parquet(buffer)
+
+    # filter to only include compressed fastq files
+    inventory_df = inventory[
+        (
+            inventory["key"].str.endswith(".fastq.gz", na=False)
+            | inventory["key"].str.endswith(".fq.gz", na=False)
+        )
+    ]
+
+    return inventory_df
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s\t[%(levelname)s]:\t%(message)s",
@@ -84,12 +100,6 @@ if __name__ == "__main__":
     samples_list = read_list_file(samples_list_file)
     bucket_name, file_name = split_s3uri(s3_inventory_path)
 
-    client = boto3.resource("s3")
-    object = client.Object(bucket_name, file_name)
-
-    buffer = io.BytesIO()
-    object.download_fileobj(buffer)
-    inventory = pd.read_parquet(buffer)
-
+    inventory = read_s3_inventory(bucket_name, file_name)
     samples_df = generate_seedfile(inventory, samples_list, source_bucket=seq_bucket)
     samples_df.to_csv(output_file, index=False)
