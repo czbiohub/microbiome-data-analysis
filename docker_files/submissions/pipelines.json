@@ -1,7 +1,7 @@
 {
     "readqc": {
         "memory": 8000,
-        "image": "sunitjain/readqc",
+        "image": "fischbach_lab/readqc",
         "version": "20200121211135",
         "queue": "fischbach__spot100",
         "cpu": 4,
@@ -12,7 +12,7 @@
     },
     "bowtie2": {
         "memory": 32000,
-        "image": "sunitjain/bowtie2",
+        "image": "fischbach_lab/bowtie2",
         "version": "20200212111032",
         "queue": "fischbach__spot100",
         "cpu": 16,
@@ -20,16 +20,16 @@
         "data_mount": "/mnt",
         "script": "./run_bowtie2.sh",
         "retries": 3,
-        "extras":{
-            "S3DBFASTA":"S3 Path to a fasta file to align the reads against, database will be built on the fly. Either this or 'S3DBPREFIX' variables are required",
-            "S3DBPREFIX":"S3 path to a pre-compiled Bowtie2 database prefix (do not include extension). Either this or 'S3DBFASTA' variables are required",
-            "SKIP_QC":"true/false Whether the input needs to be QC-ed. Default=true",
-            "DUP_REMOVAL":"true/false Whether PCR duplicates should be marked and removed from the final output. Default=false"
+        "extras": {
+            "S3DBFASTA": "S3 Path to a fasta file to align the reads against, database will be built on the fly. Either this or 'S3DBPREFIX' variables are required",
+            "S3DBPREFIX": "S3 path to a pre-compiled Bowtie2 database prefix (do not include extension). Either this or 'S3DBFASTA' variables are required",
+            "SKIP_QC": "true/false Whether the input needs to be QC-ed. Default=true",
+            "DUP_REMOVAL": "true/false Whether PCR duplicates should be marked and removed from the final output. Default=false"
         }
     },
     "midas": {
         "memory": 16000,
-        "image": "sunitjain/midas",
+        "image": "fischbach_lab/midas",
         "version": "20191119142538",
         "queue": "fischbach__spot100",
         "cpu": 8,
@@ -50,26 +50,20 @@
         "retries": 3
     },
     "ninjamap": {
-        "memory": 128000,
-        "image": "sunitjain/ninjamap",
-        "version": "20200425142151",
-        "queue": "microbiome-highPriority",
-        "cpu": 15,
-        "storage": 500,
-        "data_mount": "/mnt",
-        "script": "./ninjaMap_index.sh",
-        "retries": 1
-    },
-    "mates": {
-        "memory": 64000,
-        "image": "sunitjain/ninjamap",
-        "version": "20191119143351",
+        "memory": 244000,
+        "image": "fischbach_lab/ninjamap",
+        "version": "20201102182302",
         "queue": "fischbach__spot100",
-        "cpu": 8,
-        "storage": 500,
+        "cpu": 31,
+        "storage": 1000,
         "data_mount": "/mnt",
-        "script": "./ninjaMap_mate.sh",
-        "retries": 3
+        "script": "./ninjaMap_index_2.sh",
+        "retries": 1,
+        "extras": {
+            "S3DBPATH": "S3 path to a pre-compiled Bowtie2 database",
+            "REFDBNAME": "Actual nam eprefix of the database at the S3DBPATH; example: SCv2_3",
+            "STRAIN_MAP_FILENAME": "S3 path to the binmap file for NinjaMap db"
+        }
     },
     "mash": {
         "memory": 16000,
@@ -84,7 +78,7 @@
     },
     "humann2": {
         "memory": 120000,
-        "image": "sunitjain/humann2",
+        "image": "fischbach_lab/humann2",
         "version": "20200910125525",
         "queue": "fischbach__spot100",
         "cpu": 15,

@@ -82,7 +82,7 @@ if [ -n "${S3DBFASTA}" ]; then
     aws s3 cp ${S3DBFASTA} ${LOCAL_DB_PATH}/
 
     ## Build the database
-    bowtie2-build --seed 42 \
+    bowtie2-build --seed 1712 \
         --threads ${coreNum} \
         ${LOCAL_DB_PATH}/${LOCAL_REFSEQ_NAME} \
         ${LOCAL_DB_PATH}/${LOCAL_DB_NAME} |\
@@ -98,6 +98,8 @@ OUTPUT_PREFIX="${SAMPLE_NAME}_vs_db_${LOCAL_DB_NAME}"
 ## Map the reads
 # -t -D 10 -R 2 -L 31 -i S,0,2.50 -N 0 \
 bowtie2 \
+    --seed 1712 \
+    --align-paired-reads \
     --very-sensitive \
     -X ${maxInsert} \
     -k ${maxAlignments} \
@@ -107,6 +109,8 @@ bowtie2 \
     --no-discordant \
     --end-to-end \
     --no-unal \
+    --un-gz "${QC_FASTQ}/unpaired_unaligned.fastq.gz" \
+    --un-conc-gz "${QC_FASTQ}/paired_discordant.fastq.gz" \
     -1 "${QC_FASTQ}/read1_trimmed.fastq.gz" \
     -2 "${QC_FASTQ}/read2_trimmed.fastq.gz" | \
 samtools view \

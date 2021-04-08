@@ -4,7 +4,7 @@ set -euo pipefail
 
 DBFASTA="${1}"
 DBNAME="${2}"
-DBTYPE="${3:-'nucl'}"
+DBTYPE=${3:-"nucl"}
 
 mkdir -p blastdb_custom fasta
 mv ${DBFASTA} fasta/
